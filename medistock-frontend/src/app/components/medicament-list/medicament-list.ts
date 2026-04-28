@@ -10,7 +10,28 @@ import { Medicament } from "../../models/medicament";
   styleUrl: './medicament-list.scss',
 })
 export class MedicamentListComponent {
+  page = 0;
+  size = 20;
+  get totalPages(): number {
+    return Math.ceil(this.medicaments.length / this.size);
+  }
+  get paginatedMedications() {
+    const start = this.page * this.size;
+    const end = start + this.size;
+    return this.medicaments.slice(start, end);
+  }
 
+  nextPage() {
+    if (this.page < this.totalPages - 1) {
+      this.page++;
+    }
+  }
+
+  previousPage() {
+    if (this.page > 0) {
+      this.page--;
+    }
+  }
   @Input() medicaments: Medicament[] = [];
 
   getStatus(m: Medicament): string {
@@ -24,5 +45,6 @@ export class MedicamentListComponent {
     return 'OK';
 
   }
+
 
 }

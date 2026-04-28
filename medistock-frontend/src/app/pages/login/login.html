@@ -1,0 +1,38 @@
+<div class="login-page">
+    <section class="brand-panel">
+        <div class="brand-content">
+            <div class="logo">+</div>
+            <h1>MediStock</h1>
+            <p>Smart medical inventory management</p>
+        </div>
+    </section>
+
+    <section class="form-panel">
+        <div class="login-card">
+            <p class="eyebrow">Welcome back</p>
+            <h2>Sign in</h2>
+            <p class="subtitle">Use your account to access the inventory dashboard.</p>
+
+            <form (ngSubmit)="submit()">
+                <label>Username</label>
+                <input type="text" name="username" [(ngModel)]="username" placeholder="admin / pharmacist / provider" />
+
+                <label>Password</label>
+                <input type="password" name="password" [(ngModel)]="password" placeholder="Enter password" />
+
+                @if (errorMessage) {
+                <p class="error">{{ errorMessage }}</p>
+                }
+
+                <button type="submit">Login</button>
+            </form>
+
+            <div class="demo-users">
+                <p>Demo accounts:</p>
+                <span>admin / admin123</span>
+                <span>pharmacist / pharma123</span>
+                <span>provider / provider123</span>
+            </div>
+        </div>
+    </section>
+</div>

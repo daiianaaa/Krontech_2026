@@ -18,7 +18,7 @@
         </thead>
 
         <tbody>
-            <tr *ngFor="let m of medicaments">
+            <tr *ngFor="let m of paginatedMedications">
                 <td>{{ m.id }}</td>
                 <td>{{ m.name }}</td>
                 <td>{{ m.category }}</td>
@@ -38,4 +38,17 @@
             </tr>
         </tbody>
     </table>
+    <div class="pagination">
+        <button (click)="previousPage()" [disabled]="page === 0">
+            Previous
+        </button>
+
+        <span>
+            Page {{ page + 1 }} of {{ totalPages }}
+        </span>
+
+        <button (click)="nextPage()" [disabled]="page >= totalPages - 1">
+            Next
+        </button>
+    </div>
 </div>

@@ -47,3 +47,25 @@ th {
     color: green;
     font-weight: bold;
 }
+
+.pagination {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 16px;
+    margin-top: 20px;
+}
+
+.pagination button {
+    padding: 8px 14px;
+    border: none;
+    border-radius: 8px;
+    background: #111827;
+    color: white;
+    cursor: pointer;
+}
+
+.pagination button:disabled {
+    background: #9ca3af;
+    cursor: not-allowed;
+}
