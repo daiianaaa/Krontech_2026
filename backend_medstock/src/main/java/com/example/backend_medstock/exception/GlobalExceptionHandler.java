@@ -11,7 +11,6 @@ import java.util.Map;
 @ControllerAdvice
 public class GlobalExceptionHandler {
 
-    // Această metodă interceptează eroarea aruncată de Spring când parola sau username-ul sunt greșite
     @ExceptionHandler(BadCredentialsException.class)
     public ResponseEntity<?> handleBadCredentialsException(BadCredentialsException ex) {
         return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
@@ -21,8 +20,8 @@ public class GlobalExceptionHandler {
                 ));
     }
 
-    // Un fallback general: dacă apare ORICE altă eroare neprevăzută în aplicație,
-    // nu lăsăm serverul să trimită acel "trace" urât către frontend.
+    // fallback general: dacă apare ORICE altă eroare neprevăzută în aplicație,
+    // nu lăsăm serverul să trimită acel "trace" către frontend.
     @ExceptionHandler(Exception.class)
     public ResponseEntity<?> handleGlobalException(Exception ex) {
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)

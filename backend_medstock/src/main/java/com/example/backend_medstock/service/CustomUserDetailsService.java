@@ -24,7 +24,6 @@ public class CustomUserDetailsService implements UserDetailsService {
         User user = userRepository.findByUsername(username)
                 .orElseThrow(() -> new UsernameNotFoundException("Utilizatorul nu a fost găsit: " + username));
 
-        // Returnează un obiect pe care Spring Security îl înțelege pentru a verifica parola
         return new org.springframework.security.core.userdetails.User(
                 user.getUsername(),
                 user.getPassword(),

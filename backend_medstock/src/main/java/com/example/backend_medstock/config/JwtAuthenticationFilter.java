@@ -4,7 +4,7 @@ import com.example.backend_medstock.service.CustomUserDetailsService;
 import com.example.backend_medstock.service.JwtService;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
-import jakarta.servlet.http.Cookie; // Import adăugat pentru Cookie
+import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.lang.NonNull;
@@ -48,7 +48,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             }
         }
 
-        // Dacă nu există Cookie-ul nostru, lăsăm request-ul să treacă (și Spring îl va bloca dacă ruta e protejată)
+        // Dacă nu există Cookie-ul nostru, lăsăm request-ul să treacă
         if (jwt == null) {
             filterChain.doFilter(request, response);
             return;

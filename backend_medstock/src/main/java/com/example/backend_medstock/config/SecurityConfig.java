@@ -18,10 +18,9 @@ public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtAuthFilter;
 
-    // Injectăm filtrul nostru JWT creat anterior
     public SecurityConfig(JwtAuthenticationFilter jwtAuthFilter) {
         this.jwtAuthFilter = jwtAuthFilter;
-        System.out.println("✅✅✅ SECURITY CONFIG A FOST INCĂRCAT DE SPRING! ✅✅✅");
+        System.out.println("SECURITY CONFIG INCĂRCAT");
     }
 
     @Bean
@@ -43,17 +42,11 @@ public class SecurityConfig {
         return http.build();
     }
 
-    // ====================================================================
-    // ACEST BEAN REZOLVĂ EROAREA DIN AUTHCONTROLLER (AuthenticationManager)
-    // ====================================================================
     @Bean
     public AuthenticationManager authenticationManager(AuthenticationConfiguration authConfig) throws Exception {
         return authConfig.getAuthenticationManager();
     }
 
-    // ====================================================================
-    // ACEST BEAN SE OCUPĂ DE CRIPTAREA ȘI VERIFICAREA PAROLELOR (BCrypt)
-    // ====================================================================
     @Bean
     public PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder();
