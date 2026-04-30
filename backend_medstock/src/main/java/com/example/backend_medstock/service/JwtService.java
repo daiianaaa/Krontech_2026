@@ -17,6 +17,7 @@ import java.util.function.Function;
 @Service
 public class JwtService {
 
+
     @Value("${jwt.secret}")
     private String secretKey;
 
@@ -66,6 +67,7 @@ public class JwtService {
     }
 
     private Key getSignInKey() {
+
         byte[] keyBytes = secretKey.getBytes();
         return Keys.hmacShaKeyFor(keyBytes);
     }
