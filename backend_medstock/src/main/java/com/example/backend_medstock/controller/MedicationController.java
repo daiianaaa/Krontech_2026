@@ -19,20 +19,20 @@ public class MedicationController {
         this.medicationRepository = medicationRepository;
     }
 
-    // CREATE: Adaugă un medicament nou în baza de date
+    // CREATE
     @PostMapping
     public ResponseEntity<Medication> createMedication(@RequestBody Medication medication) {
         Medication savedMedication = medicationRepository.save(medication);
         return new ResponseEntity<>(savedMedication, HttpStatus.CREATED);
     }
 
-    // READ: Returnează lista cu toate medicamentele
+    // READ ALL
     @GetMapping
     public List<Medication> getAllMedications() {
         return medicationRepository.findAll();
     }
 
-    // READ: Returnează un singur medicament pe baza ID-ului
+    // READ BY ID
     @GetMapping("/{id}")
     public ResponseEntity<Medication> getMedicationById(@PathVariable Long id) {
         return medicationRepository.findById(id)
@@ -40,7 +40,7 @@ public class MedicationController {
                 .orElse(ResponseEntity.notFound().build());
     }
 
-    // UPDATE: Actualizează detaliile unui medicament existent
+    // UPDATE
     @PutMapping("/{id}")
     public ResponseEntity<Medication> updateMedication(@PathVariable Long id, @RequestBody Medication newData) {
         return medicationRepository.findById(id)
@@ -49,6 +49,7 @@ public class MedicationController {
                     existing.setCategory(newData.getCategory());
                     existing.setStock(newData.getStock());
                     existing.setExpiryDate(newData.getExpiryDate());
+                    existing.setReceivedDate(newData.getReceivedDate());
                     existing.setBatchNumber(newData.getBatchNumber());
                     existing.setPrice(newData.getPrice());
                     existing.setSupplier(newData.getSupplier());
@@ -60,7 +61,7 @@ public class MedicationController {
                 .orElse(ResponseEntity.notFound().build());
     }
 
-    // DELETE: Șterge un medicament din stoc
+    // DELETE
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteMedication(@PathVariable Long id) {
         if (medicationRepository.existsById(id)) {

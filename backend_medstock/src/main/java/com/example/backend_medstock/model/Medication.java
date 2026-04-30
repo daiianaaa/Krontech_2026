@@ -38,4 +38,7 @@ public class Medication {
     private String supplier;
 
     private String status;
+
+    @Column(name = "received_date")
+    private LocalDate receivedDate;
 }
