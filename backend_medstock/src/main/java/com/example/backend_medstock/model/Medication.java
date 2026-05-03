@@ -10,7 +10,7 @@ import java.time.LocalDate;
 
 @Entity
 @Table(name = "medication")
-@Data // Generează automat Getters, Setters, toString, equals
+@Data // Generează Getters, Setters, toString, equals
 @NoArgsConstructor // Constructor fără argumente
 @AllArgsConstructor // Constructor cu toate argumentele
 @Builder
@@ -38,4 +38,7 @@ public class Medication {
     private String supplier;
 
     private String status;
+
+    @Column(name = "received_date")
+    private LocalDate receivedDate;
 }
