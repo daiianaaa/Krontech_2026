@@ -10,6 +10,7 @@ import { AuthUser, LoginRequest, LoginResponse, UserRole } from '../models/auth'
 export class AuthService {
   private readonly API_URL = '/api/auth';
   private readonly USER_KEY = 'medistock_user';
+  private readonly API_URL = 'http://localhost:8080/api/auth';
 
   constructor(private http: HttpClient) {}
 
