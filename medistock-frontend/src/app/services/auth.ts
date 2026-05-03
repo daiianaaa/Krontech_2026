@@ -1,66 +1,31 @@
 import { Injectable } from '@angular/core';
-import { LoginRequest, LoginResponse, AuthUser } from '../models/auth';
+import { HttpClient } from '@angular/common/http';
+import { Observable, tap } from 'rxjs';
+import { LoginRequest, AuthUser } from '../models/auth';
 
 @Injectable({
   providedIn: 'root'
 })
 export class AuthService {
-  private readonly TOKEN_KEY = 'medistock_token';
   private readonly USER_KEY = 'medistock_user';
+  private readonly API_URL = 'http://localhost:8080/api/auth';
 
-  // mock users (fără parole)
-  private mockUsers = [
-    {
-      id: 1,
-      username: 'admin',
-      role: 'ADMIN' as const
-    },
-    {
-      id: 2,
-      username: 'pharmacist',
-      role: 'PHARMACIST' as const
-    },
-    {
-      id: 3,
-      username: 'provider',
-      role: 'PROVIDER' as const
-    }
-  ];
+  constructor(private http: HttpClient) {}
 
-  login(request: LoginRequest): LoginResponse {
-    // mock logic: username valid + parolă non-goală
-    const foundUser = this.mockUsers.find(
-      user => user.username === request.username
+  login(request: LoginRequest): Observable<{ message: string, user: AuthUser }> {
+    return this.http.post<{ message: string, user: AuthUser }>(`${this.API_URL}/login`, request, {
+      withCredentials: true
+    }).pipe(
+      tap(response => {
+        if (response.user) {
+          localStorage.setItem(this.USER_KEY, JSON.stringify(response.user));
+        }
+      })
     );
-
-    if (!foundUser || !request.password || request.password.length < 1) {
-      throw new Error('Invalid username or password');
-    }
-
-    const authUser: AuthUser = {
-      id: foundUser.id,
-      username: foundUser.username,
-      role: foundUser.role
-    };
-
-    const response: LoginResponse = {
-      token: 'mock-jwt-token-' + foundUser.role,
-      user: authUser
-    };
-
-    localStorage.setItem(this.TOKEN_KEY, response.token);
-    localStorage.setItem(this.USER_KEY, JSON.stringify(response.user));
-
-    return response;
   }
 
   logout(): void {
-    localStorage.removeItem(this.TOKEN_KEY);
     localStorage.removeItem(this.USER_KEY);
-  }
-
-  getToken(): string | null {
-    return localStorage.getItem(this.TOKEN_KEY);
   }
 
   getCurrentUser(): AuthUser | null {
@@ -69,7 +34,7 @@ export class AuthService {
   }
 
   isLoggedIn(): boolean {
-    return !!this.getToken();
+    return !!this.getCurrentUser();
   }
 
   hasRole(role: string): boolean {

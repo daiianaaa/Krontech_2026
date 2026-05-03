@@ -27,15 +27,17 @@ export class Login {
       return;
     }
 
-    try {
-      const response = this.authService.login({
-        username: this.username,
-        password: this.password
-      });
-
-      this.loginSuccess.emit(response.user);
-    } catch {
-      this.errorMessage = 'Invalid username or password';
-    }
+    this.authService.login({
+      username: this.username,
+      password: this.password
+    }).subscribe({
+      next: (response) => {
+        this.loginSuccess.emit(response.user);
+      },
+      error: (err) => {
+        console.error('Login error:', err);
+        this.errorMessage = 'Invalid username or password';
+      }
+    });
   }
 }
