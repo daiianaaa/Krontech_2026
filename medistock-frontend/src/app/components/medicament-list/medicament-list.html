@@ -1,6 +1,24 @@
 <div class="list-card">
     <h2>Medicament List</h2>
-
+    <div class="table-tools">
+        <input
+          type="text"
+          placeholder="Search by medication name..."
+          [(ngModel)]="searchTerm"
+          (ngModelChange)="onSearchChange()"
+        />
+      
+        <select
+          [(ngModel)]="selectedCategory"
+          (ngModelChange)="onCategoryChange()"
+        >
+          <option value="ALL">All categories</option>
+      
+          <option *ngFor="let category of categories" [value]="category">
+            {{ category }}
+          </option>
+        </select>
+      </div>
     <table>
         <thead>
             <tr>
@@ -14,11 +32,12 @@
                 <th>Price</th>
                 <th>Supplier</th>
                 <th>Status</th>
+                <th> Actions</th>
             </tr>
         </thead>
 
         <tbody>
-            <tr *ngFor="let m of medicaments">
+            <tr *ngFor="let m of paginatedMedications">
                 <td>{{ m.id }}</td>
                 <td>{{ m.name }}</td>
                 <td>{{ m.category }}</td>
@@ -35,7 +54,28 @@
                         {{ getStatus(m) }}
                     </span>
                 </td>
+                <td class = "actions cell">
+                    <button type="button" class="edit-btn" (click)="onEdit(m)">
+                        Edit
+                    </button>
+                    <button type="button" class="delete-btn" (click)="onDelete(m.id)">
+                        Delete
+                    </button>
+                </td>
             </tr>
         </tbody>
     </table>
+    <div class="pagination">
+        <button (click)="previousPage()" [disabled]="page === 0">
+            Previous
+        </button>
+
+        <span>
+            Page {{ page + 1 }} of {{ totalPages }}
+        </span>
+
+        <button (click)="nextPage()" [disabled]="page >= totalPages - 1">
+            Next
+        </button>
+    </div>
 </div>

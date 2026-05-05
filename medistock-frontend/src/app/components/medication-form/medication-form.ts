@@ -1,4 +1,4 @@
-import { Component, EventEmitter, Output } from '@angular/core';
+import { Component, EventEmitter, Input, OnChanges, Output, SimpleChanges } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { CommonModule } from '@angular/common';
 import { Medicament } from '../../models/medicament';
@@ -10,40 +10,70 @@ import { Medicament } from '../../models/medicament';
   templateUrl: './medication-form.html',
   styleUrl: './medication-form.scss'
 })
-export class MedicationForm {
-  @Output() add = new EventEmitter<Medicament>();
+export class MedicationForm implements OnChanges {
+  @Input() medicamentToEdit: Medicament | null = null;
 
-  model: Medicament = {
-    id: 0,                // va fi setat în App
-    name: '',
-    category: '',
-    stock: 0,
-    expiryDate: '',
-    daysUntilExpiry: 0,   // calculat
-    batchNumber: '',
-    price: 0,
-    supplier: ''
-  };
+  @Output() save = new EventEmitter<Medicament>();
+  @Output() cancelEdit = new EventEmitter<void>();
 
-  submit() {
-    // calculează daysUntilExpiry
+  model: Medicament = this.getEmptyModel();
+
+  ngOnChanges(changes: SimpleChanges): void {
+    if (changes['medicamentToEdit'] && this.medicamentToEdit) {
+      this.model = { ...this.medicamentToEdit };
+    }
+  }
+
+  validationError: string = '';
+
+  get isEditMode(): boolean {
+    return this.medicamentToEdit !== null;
+  }
+
+  submit(): void {
+    this.validationError = '';
+
+    if (this.model.stock < 0) {
+      this.validationError = 'Stock cannot be negative.';
+      return;
+    }
+
+    if (this.model.price < 0) {
+      this.validationError = 'Price cannot be negative.';
+      return;
+    }
+
     const today = new Date();
     const exp = new Date(this.model.expiryDate);
     const diff = Math.ceil((exp.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+
     this.model.daysUntilExpiry = diff;
 
-    this.add.emit({ ...this.model });
+    this.save.emit({ ...this.model });
 
-    // reset form
-    this.model = {
+    this.resetForm();
+  }
+
+  cancel(): void {
+    this.resetForm();
+    this.cancelEdit.emit();
+  }
+
+  private resetForm(): void {
+    this.validationError = '';
+    this.model = this.getEmptyModel();
+  }
+
+  private getEmptyModel(): Medicament {
+    return {
       id: 0,
       name: '',
       category: '',
-      stock: 0,
+      stock: null as any,
       expiryDate: '',
       daysUntilExpiry: 0,
       batchNumber: '',
-      price: 0,
+      price: null as any,
       supplier: ''
     };
   }
