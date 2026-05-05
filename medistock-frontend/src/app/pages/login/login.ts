@@ -1,7 +1,7 @@
-import { Component, EventEmitter, Output } from '@angular/core';
+import { Component, EventEmitter, Output, NgZone, ChangeDetectorRef } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { AuthService } from '../../services/auth';
-import { AuthUser } from '../../models/auth';
+import { AuthUser, UserRole } from '../../models/auth';
 
 @Component({
   selector: 'app-login',
@@ -16,8 +16,13 @@ export class Login {
   username = '';
   password = '';
   errorMessage = '';
+  isLoading = false;
 
-  constructor(private authService: AuthService) { }
+  constructor(
+    private ngZone: NgZone,
+    private cdr: ChangeDetectorRef,
+    private authService: AuthService
+  ) {}
 
   submit(): void {
     this.errorMessage = '';
@@ -27,17 +32,56 @@ export class Login {
       return;
     }
 
-    this.authService.login({
-      username: this.username,
-      password: this.password
-    }).subscribe({
-      next: (response) => {
-        this.loginSuccess.emit(response.user);
-      },
-      error: (err) => {
-        console.error('Login error:', err);
-        this.errorMessage = 'Invalid username or password';
+    this.isLoading = true;
+
+    fetch('http://localhost:8080/api/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({
+        username: this.username.trim(),
+        password: this.password
+      })
+    })
+    .then(async (res) => {
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.eroare || data.message || 'Username sau parolă incorectă.');
       }
+
+      return data;
+    })
+    .then((data) => {
+      this.ngZone.run(() => {
+        // Folosim rolul din backend, sau mapam din username
+        const role: UserRole = this.mapRole(data?.user?.role || this.username);
+
+        const user: AuthUser = {
+          username: this.username.trim(),
+          role: role
+        };
+
+        sessionStorage.setItem('medistock_user', JSON.stringify(user));
+        this.isLoading = false;
+        this.loginSuccess.emit(user);
+        this.cdr.detectChanges();
+      });
+    })
+    .catch((err) => {
+      this.ngZone.run(() => {
+        this.isLoading = false;
+        this.errorMessage = err.message || 'Username sau parolă incorectă.';
+        this.cdr.detectChanges();
+      });
     });
+  }
+
+  private mapRole(value: string): UserRole {
+    const v = value.toLowerCase();
+    if (v.includes('admin')) return 'ADMIN';
+    if (v.includes('pharma') || v.includes('farm')) return 'PHARMACIST';
+    if (v.includes('provider')) return 'PROVIDER';
+    return 'ADMIN';
   }
 }

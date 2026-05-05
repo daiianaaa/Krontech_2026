@@ -1,17 +1,15 @@
 export type UserRole = 'ADMIN' | 'PHARMACIST' | 'PROVIDER';
 
 export interface LoginRequest {
-    username: string;
-    password: string;
-}
-
-export interface AuthUser {
-    id: number;
-    username: string;
-    role: UserRole;
+  username: string;
+  password: string;
 }
 
 export interface LoginResponse {
-    token: string;
-    user: AuthUser;
+  message: string;
+}
+
+export interface AuthUser {
+  username: string;
+  role: UserRole;
 }

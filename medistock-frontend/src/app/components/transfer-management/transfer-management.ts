@@ -2,7 +2,6 @@ import { CommonModule } from '@angular/common';
 import { Component, EventEmitter, Input, OnChanges, OnInit, Output, SimpleChanges } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 
-import { DESTINATION_FACILITIES_MOCK } from '../../data/transfers.mock';
 import { Medicament } from '../../models/medicament';
 import { AuthUser } from '../../models/auth';
 import {
@@ -12,6 +11,7 @@ import {
   mapMedicationToFacilityStock
 } from '../../models/transfer';
 import { TransferService } from '../../services/transfer.service';
+import { UserService } from '../../services/user.service';
 
 @Component({
   selector: 'app-transfer-management',
@@ -26,19 +26,26 @@ export class TransferManagementComponent implements OnInit, OnChanges {
   @Input() mode: 'transfers' | 'inbox' = 'transfers';
   @Output() stockTransferred = new EventEmitter<{ medicationId: number; quantity: number }>();
 
-  currentFacility = "Spitalul Clinic Județean de Urgență Brașov";
-  destinationFacilities = DESTINATION_FACILITIES_MOCK;
+  get currentFacility(): string {
+    return this.currentUser?.username || "Spitalul Clinic Județean de Urgență Brașov";
+  }
+
+  destinationFacilities: string[] = [];
+  selectedDestination = '';
+
   candidateStocks: FacilityStock[] = [];
   transfers: TransferRequest[] = [];
 
   selectedMedicationId: number | null = null;
-  selectedDestination = this.destinationFacilities[0];
   quantity = 1;
   reason = 'Expiring stock redistribution before waste.';
   errorMessage = '';
   successMessage = '';
 
-  constructor(private transferService: TransferService) { }
+  constructor(
+    private transferService: TransferService,
+    private userService: UserService
+  ) { }
 
   ngOnInit(): void {
     this.refreshCandidates();
@@ -46,6 +53,18 @@ export class TransferManagementComponent implements OnInit, OnChanges {
 
     this.transferService.transfers$.subscribe((transfers) => {
       this.transfers = transfers;
+    });
+
+    // Incarcam facilitatile din baza de date
+    this.userService.getFacilityNames().subscribe({
+      next: (names) => {
+        // Excludem facilitatea curenta din lista de destinatii
+        this.destinationFacilities = names.filter(name => name !== this.currentFacility);
+        if (this.destinationFacilities.length > 0) {
+          this.selectedDestination = this.destinationFacilities[0];
+        }
+      },
+      error: (err) => console.error('Failed to load facilities', err)
     });
   }
 
@@ -144,7 +163,10 @@ export class TransferManagementComponent implements OnInit, OnChanges {
 
   private refreshCandidates(): void {
     this.candidateStocks = this.medicaments
-      .filter((medication) => medication.stock > 0 && medication.daysUntilExpiry <= 60)
+      .filter((medication) =>
+        medication.stock > 0 &&
+        medication.daysUntilExpiry >= 0  // Exclude medicamente expirate
+      )
       .sort((a, b) => a.daysUntilExpiry - b.daysUntilExpiry)
       .map((medication) => mapMedicationToFacilityStock(medication, 1, this.currentFacility, 'Brașov'));
 

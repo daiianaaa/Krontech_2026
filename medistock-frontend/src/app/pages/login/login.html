@@ -21,10 +21,16 @@
                 <input type="password" name="password" [(ngModel)]="password" placeholder="Enter password" />
 
                 @if (errorMessage) {
-                <p class="error">{{ errorMessage }}</p>
+                <p class="error"> {{ errorMessage }}</p>
                 }
 
-                <button type="submit">Login</button>
+                <button type="submit" [disabled]="isLoading">
+                    @if (isLoading) {
+                    <span class="spinner"></span> Verifying...
+                    } @else {
+                    Login
+                    }
+                </button>
             </form>
 
             <div class="demo-users">

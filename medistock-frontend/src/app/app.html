@@ -6,7 +6,11 @@
     <aside class="sidebar">
       <h2>MediStock</h2>
       <p class="role">
-        Logged in as: {{ currentUser.role }}
+        {{ currentUser.username }}
+      </p>
+      
+      <p class="role">
+        Role: {{ currentUser.role }}
       </p>
 
       <button class="logout-btn" (click)="logout()">
@@ -18,6 +22,20 @@
         </button>
         <button [class.active]="activeTab === 'medications'" (click)="activeTab = 'medications'">
           Medications
+        </button>
+        <button [class.active]="activeTab === 'transfers'" (click)="activeTab = 'transfers'">
+          Transfers
+        </button>
+        <button class="nav-button" [class.active]="activeTab === 'inbox'" (click)="activeTab = 'inbox'">
+
+          Inbox
+
+          @if (inboxNotificationCount > 0) {
+
+          <span class="nav-badge">{{ inboxNotificationCount }}</span>
+
+          }
+
         </button>
         <button [class.active]="activeTab === 'alerts'" (click)="activeTab = 'alerts'">
           Alerts
@@ -157,38 +175,97 @@
       @if (activeTab === 'medications') {
       <h1>Medication Management</h1>
       @if (canAddMedication()) {
-      <app-medication-form (add)="addMed($event)"></app-medication-form>
+        <app-medication-form
+        [medicamentToEdit]="selectedMedicament"
+        (save)="saveMed($event)"
+        (cancelEdit)="cancelMedicationEdit()">
+      </app-medication-form>
       } @else {
       <div class="restricted-card">
         You do not have permission to add medication.
       </div>
       }
-      <app-medicament-list [medicaments]="medicaments">
+      <app-medicament-list [medicaments]="medicaments" (edit)="editMed($event)" (delete)="deleteMed($event)">
       </app-medicament-list>
       }
+      @if (activeTab === 'transfers') {
+      <app-transfer-management [medicaments]="medicaments" [currentUser]="currentUser" [mode]="'transfers'"
+        (stockTransferred)="reserveTransferredStock($event)">
+      </app-transfer-management>
+      }
+      @if (activeTab === 'inbox') {
+      <app-transfer-management [medicaments]="medicaments" [currentUser]="currentUser" [mode]="'inbox'"
+        (stockTransferred)="reserveTransferredStock($event)">
+      </app-transfer-management>
+      }
       @if (activeTab === 'alerts') {
-      <h1>Alerts</h1>
-      <div class="alert-section">
-        <h2>Expired Medications</h2>
-        @for (m of medicaments; track m.id) {
-        @if (m.daysUntilExpiry < 0) { <div class="alert-card danger">
-          <strong>{{ m.name }}</strong>
-          <span>Expired | Stock: {{ m.stock }} | Loss: {{ m.stock * m.price }} RON</span>
-      </div>
-      }
-      }
-      </div>
-      <div class="alert-section">
-        <h2>Expiring Soon</h2>
-        @for (m of medicaments; track m.id) {
-        @if (m.daysUntilExpiry >= 0 && m.daysUntilExpiry <= 30) { <div class="alert-card warning">
-          <strong>{{ m.name }}</strong>
-          <span>{{ m.daysUntilExpiry }} days left | Stock: {{ m.stock }}</span>
-      </div>
-      }
-      }
-      </div>
-      }
+        <div class="alerts-page">
+          <div class="dashboard-header">
+            <div>
+              <p class="eyebrow">Inventory Risk</p>
+              <h1>Alerts</h1>
+              <p class="subtitle">Expired, expiring soon and low-stock medications.</p>
+            </div>
+          </div>
+        
+          <div class="kpi-grid">
+            <div class="kpi-card danger">
+              <span class="kpi-label">Expired</span>
+              <strong>{{ expiredCount }}</strong>
+              <p>Immediate removal needed</p>
+            </div>
+        
+            <div class="kpi-card orange">
+              <span class="kpi-label">Expiring Soon</span>
+              <strong>{{ expiringSoonCount }}</strong>
+              <p>Within next 30 days</p>
+            </div>
+        
+            <div class="kpi-card warning">
+              <span class="kpi-label">Low Stock</span>
+              <strong>{{ lowStockCount }}</strong>
+              <p>Needs restocking</p>
+            </div>
+          </div>
+        
+          <section class="panel">
+            <div class="panel-header">
+              <div>
+                <h2>Priority Alerts</h2>
+                <p>Items that need attention first</p>
+              </div>
+            </div>
+        
+            @for (m of priorityAlerts; track m.id) {
+            <div class="priority-row">
+              <div>
+                <strong>{{ m.name }}</strong>
+                <p>{{ m.category }} · Batch {{ m.batchNumber }} · Stock: {{ m.stock }}</p>
+              </div>
+        
+              <div class="alert-right">
+                <span
+                  class="status-pill"
+                  [class.expired]="getMedicationStatus(m) === 'EXPIRED'"
+                  [class.expiring]="getMedicationStatus(m) === 'EXPIRING'"
+                  [class.low]="getMedicationStatus(m) === 'LOW_STOCK'"
+                >
+                  {{ getMedicationStatus(m) }}
+                </span>
+        
+                <strong>
+                  {{ m.daysUntilExpiry }} days
+                </strong>
+              </div>
+            </div>
+            }
+        
+            @if (priorityAlerts.length === 0) {
+            <p class="empty-state">No medication alerts right now.</p>
+            }
+          </section>
+        </div>
+        }
       @if (activeTab === 'predictions') {
       <h1>Predictions</h1>
       <div class="placeholder-card">
