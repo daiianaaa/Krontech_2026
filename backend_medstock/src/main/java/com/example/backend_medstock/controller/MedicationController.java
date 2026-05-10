@@ -53,7 +53,6 @@ public class MedicationController {
                     existing.setBatchNumber(newData.getBatchNumber());
                     existing.setPrice(newData.getPrice());
                     existing.setSupplier(newData.getSupplier());
-                    existing.setStatus(newData.getStatus());
 
                     Medication updated = medicationRepository.save(existing);
                     return ResponseEntity.ok(updated);

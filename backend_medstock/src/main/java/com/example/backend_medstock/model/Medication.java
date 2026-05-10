@@ -10,9 +10,9 @@ import java.time.LocalDate;
 
 @Entity
 @Table(name = "medication")
-@Data // Generează Getters, Setters, toString, equals
-@NoArgsConstructor // Constructor fără argumente
-@AllArgsConstructor // Constructor cu toate argumentele
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
 @Builder
 public class Medication {
 
@@ -37,8 +37,14 @@ public class Medication {
 
     private String supplier;
 
-    private String status;
-
     @Column(name = "received_date")
     private LocalDate receivedDate;
+
+    // Verifică dacă data primirii este completată; dacă nu, pune data curentă.
+    @PrePersist
+    protected void onCreate() {
+        if (this.receivedDate == null) {
+            this.receivedDate = LocalDate.now();
+        }
+    }
 }
