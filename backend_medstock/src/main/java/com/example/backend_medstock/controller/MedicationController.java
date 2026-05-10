@@ -4,6 +4,7 @@ import com.example.backend_medstock.model.Medication;
 import com.example.backend_medstock.model.User;
 import com.example.backend_medstock.repository.MedicationRepository;
 import com.example.backend_medstock.repository.UserRepository;
+import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
@@ -27,7 +28,7 @@ public class MedicationController {
 
     // CREATE
     @PostMapping
-    public ResponseEntity<?> createMedication(@RequestBody Medication medication, Authentication authentication) {
+    public ResponseEntity<?> createMedication(@Valid @RequestBody Medication medication, Authentication authentication) {
         // 1. Luam username-ul din token-ul JWT care a fost validat deja
         String currentUsername = authentication.getName();
 
@@ -61,7 +62,7 @@ public class MedicationController {
 
     // UPDATE
     @PutMapping("/{id}")
-    public ResponseEntity<Medication> updateMedication(@PathVariable Long id, @RequestBody Medication newData) {
+    public ResponseEntity<Medication> updateMedication(@PathVariable Long id, @Valid @RequestBody Medication newData) {
         return medicationRepository.findById(id)
                 .map(existing -> {
                     existing.setName(newData.getName());
