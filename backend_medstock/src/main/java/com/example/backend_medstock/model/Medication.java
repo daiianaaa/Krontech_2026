@@ -40,7 +40,12 @@ public class Medication {
     @Column(name = "received_date")
     private LocalDate receivedDate;
 
-    // Verifică dacă data primirii este completată; dacă nu, pune data curentă.
+    // Asociere batch cu owner
+    @ManyToOne(fetch = FetchType.EAGER)
+    @JoinColumn(name = "user_id", nullable = false)
+    private User owner;
+
+    // Verifică dacă data primirii este completată, dacă nu pune data curentă.
     @PrePersist
     protected void onCreate() {
         if (this.receivedDate == null) {
