@@ -1,5 +1,6 @@
 package com.example.backend_medstock.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -31,6 +32,8 @@ public class User {
     @Column(unique = true, nullable = false)
     private String username;
 
+    //JsonIgnore blocheaza trimiterea parolei catre frontend la interogare.
+    @JsonIgnore
     @Column(nullable = false)
     private String password;
 }
