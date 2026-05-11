@@ -1,9 +1,13 @@
 package com.example.backend_medstock.controller;
 
 import com.example.backend_medstock.model.Medication;
+import com.example.backend_medstock.model.User;
 import com.example.backend_medstock.repository.MedicationRepository;
+import com.example.backend_medstock.repository.UserRepository;
+import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -15,15 +19,30 @@ import java.util.UUID;
 public class MedicationController {
 
     private final MedicationRepository medicationRepository;
+    private final UserRepository userRepository;
 
-    public MedicationController(MedicationRepository medicationRepository) {
+    public MedicationController(MedicationRepository medicationRepository, UserRepository userRepository) {
         this.medicationRepository = medicationRepository;
+        this.userRepository = userRepository;
     }
 
     // CREATE
     @PostMapping
-    public ResponseEntity<Medication> createMedication(@RequestBody Medication medication) {
+    public ResponseEntity<?> createMedication(@Valid @RequestBody Medication medication, Authentication authentication) {
+        // 1. Luam username-ul din token-ul JWT care a fost validat deja
+        String currentUsername = authentication.getName();
+
+        // 2. Cautam utilizatorul in baza de date
+        Optional<User> currentUserOpt = userRepository.findByUsername(currentUsername);
+
+        if (currentUserOpt.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Utilizatorul nu a fost găsit!");
+        }
+
+        // 3. Setam owner-ul si salvam medicamentul
+        medication.setOwner(currentUserOpt.get());
         Medication savedMedication = medicationRepository.save(medication);
+
         return new ResponseEntity<>(savedMedication, HttpStatus.CREATED);
     }
 
@@ -64,6 +83,7 @@ public class MedicationController {
 
                     // createdAt si updatedAt sunt gestionate automat de @PrePersist / @PreUpdate
 
+                    // Nu facem update la 'owner', un medicament ramane la cine l-a creat
                     Medication updated = medicationRepository.save(existing);
                     return ResponseEntity.ok(updated);
                 })
