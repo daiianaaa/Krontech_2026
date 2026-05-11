@@ -1,17 +1,17 @@
 package com.example.backend_medstock.model;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
-import jakarta.validation.constraints.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.hibernate.annotations.ColumnTransformer;
 
-import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.util.UUID;
 
 @Entity
-@Table(name = "medication")
+@Table(name = "medications")
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
@@ -19,65 +19,69 @@ import java.time.LocalDate;
 public class Medication {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    @GeneratedValue(strategy = GenerationType.UUID)
+    private UUID id;
 
-    @NotBlank(message = "Numele medicamentului este obligatoriu")
-    @Column(nullable = false)
+    private String code;
+
     private String name;
 
-    @NotBlank(message = "Categoria medicamentului este obligatorie")
+    @Column(name = "generic_name")
+    private String genericName;
+
     private String category;
 
-    @Min(value = 0, message = "Stocul nu poate fi negativ")
-    @Max(value = 999999, message = "Stocul maxim admis este de 999999")
-    private Integer stock;
+    @Column(name = "therapeutic_class")
+    private String therapeuticClass;
 
-    @NotNull(message = "Data de expirare este obligatorie")
-    @Column(name = "expiry_date", nullable = false)
-    private LocalDate expiryDate;
+    @Column(name = "form", columnDefinition = "medication_form")
+    @ColumnTransformer(write = "?::medication_form")
+    private String form;
 
-    @NotBlank(message = "Numele lotului este obligatoriu")
-    @Column(name = "batch_number")
-    private String batchNumber;
+    private String concentration;
 
-    @Min(value = 0, message = "Prețul nu poate fi negativ")
-    @Max(value = 999999, message = "Prețul maxim admis este de 999999")
-    private Double price;
+    private String unit;
 
-    private String supplier;
+    @Column(name = "criticality", columnDefinition = "criticality_level")
+    @ColumnTransformer(write = "?::criticality_level")
+    private String criticality;
 
-    @Column(name = "received_date")
-    private LocalDate receivedDate;
+    @Column(name = "required_storage_type", columnDefinition = "storage_type")
+    @ColumnTransformer(write = "?::storage_type")
+    private String requiredStorageType;
 
-    @ManyToOne(fetch = FetchType.EAGER)
-    @JoinColumn(name = "user_id", nullable = false)
-    private User owner;
+    @Column(name = "controlled_substance")
+    private Boolean controlledSubstance;
+
+    @Column(name = "standard_daily_usage_per_patient")
+    private Double standardDailyUsagePerPatient;
+
+    @Column(name = "default_min_buffer_days")
+    private Integer defaultMinBufferDays;
+
+    @Column(name = "default_target_buffer_days")
+    private Integer defaultTargetBufferDays;
+
+    @Column(name = "is_active")
+    private Boolean isActive;
+
+    @Column(name = "created_at", updatable = false)
+    private LocalDateTime createdAt;
+
+    @Column(name = "updated_at")
+    private LocalDateTime updatedAt;
 
     @PrePersist
     protected void onCreate() {
-        if (this.receivedDate == null) {
-            this.receivedDate = LocalDate.now();
+        this.createdAt = LocalDateTime.now();
+        this.updatedAt = LocalDateTime.now();
+        if (this.isActive == null) {
+            this.isActive = true;
         }
     }
 
-    @AssertTrue(message = "Anul de expirare trebuie să fie mai mare decat 1900.")
-    @JsonIgnore
-    public boolean isExpiryYearValid() {
-        if (this.expiryDate == null) {
-            return false;
-        }
-        int year = this.expiryDate.getYear();
-        return year >= 1900 && year <= 3000;
-    }
-
-    @AssertTrue(message = "Anul primirii trebuie să fie mai mare decat 1900.")
-    @JsonIgnore
-    public boolean isReceivedYearValid() {
-        if (this.receivedDate == null) {
-            return true;
-        }
-        int year = this.receivedDate.getYear();
-        return year >= 1900 && year <= 3000;
+    @PreUpdate
+    protected void onUpdate() {
+        this.updatedAt = LocalDateTime.now();
     }
 }
