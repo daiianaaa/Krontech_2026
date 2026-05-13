@@ -1,13 +1,12 @@
 import { Injectable } from '@angular/core';
 import { BehaviorSubject } from 'rxjs';
-import { TRANSFERS_MOCK } from '../data/transfers.mock';
 import { CreateTransferRequest, TransferRequest, TransferStatus } from '../models/transfer';
 
 @Injectable({
     providedIn: 'root'
 })
 export class TransferService {
-    private readonly transfersSubject = new BehaviorSubject<TransferRequest[]>(TRANSFERS_MOCK);
+    private readonly transfersSubject = new BehaviorSubject<TransferRequest[]>([]);
     readonly transfers$ = this.transfersSubject.asObservable();
 
     getTransfers(): TransferRequest[] {
@@ -21,15 +20,15 @@ export class TransferService {
             id: this.getNextId(),
             medicationId: request.source.medicationId,
             medicationName: request.source.medicationName,
-            batchNumber: request.source.batchNumber,
-            quantity: request.quantity,
+            batchNumber: request.batchNumber,
             fromFacility: request.source.facilityName,
             toFacility: request.toFacility,
+            quantity: request.quantity,
             reason: request.reason,
             status: 'PENDING',
             requestedBy,
             requestedAt: this.formatDateTime(new Date()),
-            estimatedSavedValue: Number((request.quantity * request.source.price).toFixed(2))
+            estimatedSavedValue: 0
         };
 
         this.transfersSubject.next([transfer, ...current]);

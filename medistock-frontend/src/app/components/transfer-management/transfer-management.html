@@ -3,15 +3,15 @@
         <div>
             <p class="eyebrow">B2B Redistribution</p>
             <h1>Stock Transfers</h1>
-            <p>Move expiring or overstocked batches to another medical unit before they become waste.</p>
+            <p>Move medications to another medical unit.</p>
         </div>
     </div>
 
     <div class="transfer-kpis">
         <div class="transfer-kpi">
             <span>Transfer Candidates</span>
-            <strong>{{ expiringCandidatesCount }}</strong>
-            <p>Batches expiring in max. 60 days</p>
+            <strong>{{ candidateStocks.length }}</strong>
+            <p>Active medications available</p>
         </div>
 
         <div class="transfer-kpi">
@@ -21,11 +21,12 @@
         </div>
 
         <div class="transfer-kpi">
-            <span>Potential Saved Value</span>
-            <strong>{{ estimatedSavedValue }} RON</strong>
-            <p>Estimated stock value protected</p>
+            <span>Total Transfers</span>
+            <strong>{{ transfers.length }}</strong>
+            <p>All transfer requests</p>
         </div>
     </div>
+
     @if (mode === 'inbox') {
     <section class="transfer-panel inbox-panel">
         <div class="inbox-header">
@@ -51,7 +52,6 @@
                 <strong>{{ transfer.medicationName }}</strong>
                 <p>
                     {{ transfer.quantity }} units from {{ transfer.fromFacility }}
-                    · Batch {{ transfer.batchNumber }}
                 </p>
                 <span>{{ transfer.reason }}</span>
             </div>
@@ -83,7 +83,7 @@
     @if (mode === 'transfers') {
     <div class="transfer-grid">
         <section class="transfer-panel">
-            <h2>All My Institution Transfers</h2>
+            <h2>Create Transfer Request</h2>
 
             @if (!canManageTransfers) {
             <div class="restricted-card">
@@ -93,21 +93,46 @@
 
             @if (canManageTransfers) {
             <form (ngSubmit)="createTransfer()" class="transfer-form">
+                
+                <div style="margin-bottom: 1rem; display: flex; gap: 1rem; align-items: center;">
+                    <label style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0;">
+                        <input type="radio" name="transferDirection" [(ngModel)]="transferDirection" value="SEND" />
+                        Send Transfer
+                    </label>
+                    <label style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0;">
+                        <input type="radio" name="transferDirection" [(ngModel)]="transferDirection" value="REQUEST" />
+                        Request Transfer
+                    </label>
+                </div>
+
                 <label>
-                    Source batch
-                    <select name="selectedMedicationId" [(ngModel)]="selectedMedicationId">
-                        @for (stock of candidateStocks; track stock.medicationId) {
+                    Medication
+                    <select name="selectedMedicationId" [(ngModel)]="selectedMedicationId" (ngModelChange)="onMedicationChange()">
+                        @for (stock of filteredCandidateStocks; track stock.medicationId) {
                         <option [ngValue]="stock.medicationId">
-                            {{ stock.medicationName }} · {{ stock.batchNumber }} · {{ stock.stock }} units · {{
-                            stock.daysUntilExpiry }} days
+                            {{ stock.medicationName }} ({{ stock.category }})
                         </option>
                         }
                     </select>
                 </label>
 
+                @if (batches.length > 0) {
                 <label>
-                    Destination facility
-                    <select name="selectedDestination" [(ngModel)]="selectedDestination">
+                    Batch (Optional)
+                    <select name="selectedBatchNumber" [(ngModel)]="selectedBatchNumber">
+                        <option [ngValue]="undefined">Any Batch (FEFO)</option>
+                        @for (batch of batches; track batch.id) {
+                        <option [ngValue]="batch.batchNumber">
+                            {{ batch.batchNumber }} - Exp: {{ batch.expiryDate | date:'shortDate' }} (Qty: {{ batch.quantityCurrent }})
+                        </option>
+                        }
+                    </select>
+                </label>
+                }
+
+                <label>
+                    {{ transferDirection === 'SEND' ? 'Destination facility' : 'Source facility' }}
+                    <select name="selectedOtherFacility" [(ngModel)]="selectedOtherFacility">
                         @for (facility of destinationFacilities; track facility) {
                         <option [ngValue]="facility">{{ facility }}</option>
                         }
@@ -121,15 +146,26 @@
 
                 <label>
                     Reason
-                    <textarea name="reason" rows="3" [(ngModel)]="reason"></textarea>
+                    <textarea
+                      name="reason"
+                      rows="4"
+                      [(ngModel)]="reason"
+                      [maxlength]="reasonMaxLength"
+                      placeholder="Explain the reason for this transfer..."
+                      style="resize: none; width: 100%; box-sizing: border-box;"
+                    ></textarea>
+                    <span [style.color]="reasonTooLong ? 'red' : 'inherit'" style="font-size: 0.75rem;">
+                      {{ reason.length }} / {{ reasonMaxLength }} characters
+                    </span>
                 </label>
 
                 @if (selectedSource) {
                 <div class="source-summary">
                     <strong>{{ selectedSource.medicationName }}</strong>
-                    <span>Batch {{ selectedSource.batchNumber }}</span>
-                    <span>Stock: {{ selectedSource.stock }}</span>
-                    <span>Estimated saving: {{ quantity * selectedSource.price | number:'1.0-2' }} RON</span>
+                    <span>Category: {{ selectedSource.category }}</span>
+                    @if (selectedSource.criticality) {
+                    <span>Criticality: {{ selectedSource.criticality }}</span>
+                    }
                 </div>
                 }
 
@@ -141,38 +177,55 @@
                 <p class="form-message success">{{ successMessage }}</p>
                 }
 
-                <button type="submit">Create Transfer</button>
+                <button type="submit">
+                    {{ transferDirection === 'SEND' ? 'Create Transfer' : 'Request Transfer' }}
+                </button>
             </form>
             }
         </section>
 
         <section class="transfer-panel">
-            <h2>AI Recommended Transfers (Candidates)</h2>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+                <h2 style="margin: 0;">Available Medications</h2>
+                <div style="display: flex; gap: 0.5rem;">
+                    <input type="text" placeholder="Search by name..." [(ngModel)]="searchQuery" style="padding: 0.5rem; border: 1px solid #ddd; border-radius: 4px; min-width: 200px;" />
+                    <select [(ngModel)]="categoryFilter" style="padding: 0.5rem; border: 1px solid #ddd; border-radius: 4px;">
+                        <option value="ALL">All Categories</option>
+                        @for (category of uniqueCategories; track category) {
+                        <option [ngValue]="category">{{ category }}</option>
+                        }
+                    </select>
+                    <select [(ngModel)]="statusFilter" style="padding: 0.5rem; border: 1px solid #ddd; border-radius: 4px;">
+                        <option value="ALL">All Statuses</option>
+                        <option value="ACTIVE">Active Only</option>
+                        <option value="INACTIVE">Inactive Only</option>
+                    </select>
+                </div>
+            </div>
 
-            @for (stock of candidateStocks.slice(0, 8); track stock.medicationId) {
+            @for (stock of filteredCandidateStocks.slice(0, 8); track stock.medicationId) {
             <div class="candidate-row">
                 <div>
                     <strong>{{ stock.medicationName }}</strong>
-                    <p>{{ stock.category }} · Batch {{ stock.batchNumber }}</p>
+                    <p>{{ stock.category }}</p>
                 </div>
 
                 <div class="candidate-meta">
-                    <span>{{ stock.stock }} units</span>
-                    <strong [class.critical]="stock.daysUntilExpiry <= 30">
-                        {{ stock.daysUntilExpiry }} days
-                    </strong>
+                    @if (stock.criticality) {
+                    <span>{{ stock.criticality }}</span>
+                    }
+                    <span [class.inactive]="!stock.isActive">{{ stock.isActive ? 'Active' : 'Inactive' }}</span>
+                    <button type="button" class="btn-details" (click)="openDetails(stock)">View Details</button>
                 </div>
             </div>
             }
 
-            @if (candidateStocks.length === 0) {
-            <p class="empty-state">No transfer candidates at the moment.</p>
+            @if (filteredCandidateStocks.length === 0) {
+            <p class="empty-state">No medications match your search criteria.</p>
             }
         </section>
     </div>
-    }
 
-    @if (mode === 'transfers') {
     <section class="transfer-panel transfer-history">
         <h2>Transfer Requests</h2>
 
@@ -185,7 +238,6 @@
                     <th>To</th>
                     <th>Quantity</th>
                     <th>Status</th>
-                    <th>Saved Value</th>
                     <th>Actions</th>
                 </tr>
             </thead>
@@ -196,8 +248,7 @@
                     <td>#{{ transfer.id }}</td>
 
                     <td>
-                        <strong>{{ transfer.medicationName }}</strong><br />
-                        <span>Batch {{ transfer.batchNumber }}</span>
+                        <strong>{{ transfer.medicationName }}</strong>
                     </td>
 
                     <td>{{ transfer.fromFacility }}</td>
@@ -212,8 +263,6 @@
                             {{ transfer.status }}
                         </span>
                     </td>
-
-                    <td>{{ transfer.estimatedSavedValue }} RON</td>
 
                     <td>
                         @if (transfer.status === 'PENDING' && canManageTransfers) {
@@ -237,6 +286,19 @@
                 }
             </tbody>
         </table>
+
+        @if (transfers.length === 0) {
+        <p class="empty-state">No transfer requests yet.</p>
+        }
     </section>
+    } <!-- Closing brace for @if (mode === 'transfers') -->
+
+    @if (selectedStockForDetails) {
+    <app-medication-details-modal
+      [stock]="selectedStockForDetails"
+      (close)="closeDetails()"
+      (initiateAction)="onInitiateActionFromModal($event)"
+    ></app-medication-details-modal>
     }
+
 </div>

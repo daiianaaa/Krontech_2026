@@ -10,6 +10,13 @@ export interface LoginResponse {
 }
 
 export interface AuthUser {
+
+  id?: string | number;
+
   username: string;
+
   role: UserRole;
+
+  institutionName?: string;
+
 }

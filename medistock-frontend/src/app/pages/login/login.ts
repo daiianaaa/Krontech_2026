@@ -34,10 +34,10 @@ export class Login {
 
     this.isLoading = true;
 
-    fetch('http://localhost:8080/api/auth/login', {
+    fetch('/api/auth/login', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      credentials: 'include',
+      credentials: 'same-origin',
       body: JSON.stringify({
         username: this.username.trim(),
         password: this.password

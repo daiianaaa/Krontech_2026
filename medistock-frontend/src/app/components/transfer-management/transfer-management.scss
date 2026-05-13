@@ -171,6 +171,24 @@
     color: #dc2626;
 }
 
+.btn-details {
+    margin-top: 8px;
+    background-color: transparent;
+    border: 1px solid #3b82f6;
+    color: #3b82f6;
+    border-radius: 6px;
+    padding: 4px 10px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease-in-out;
+
+    &:hover {
+        background-color: #3b82f6;
+        color: white;
+    }
+}
+
 .transfer-history {
     overflow-x: auto;
 }

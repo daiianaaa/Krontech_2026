@@ -10,6 +10,7 @@ import { AuthService } from './services/auth';
 import { AuthUser } from './models/auth';
 import { TransferManagementComponent } from './components/transfer-management/transfer-management';
 import { TransferService } from './services/transfer.service';
+import { UserService } from './services/user.service';
 
 @Component({
   selector: 'app-root',
@@ -26,47 +27,61 @@ import { TransferService } from './services/transfer.service';
 })
 export class App implements OnInit {
   medicaments: Medicament[] = [];
+  destinationFacilities: string[] = [];
 
   currentUser: AuthUser | null = null;
-
-  get currentFacility(): string {
-    return this.currentUser?.username || 'Spitalul Clinic Județean de Urgență Brașov';
-  }
-
   selectedMedicament: Medicament | null = null;
+  backendError = '';
 
   activeTab:
     | 'dashboard'
     | 'medications'
     | 'transfers'
     | 'inbox'
-    | 'alerts'
-    | 'predictions' = 'dashboard';
-
-  alertSearch = '';
-  alertStatus: 'ALL' | 'LOW_STOCK' | 'EXPIRING' | 'EXPIRED' = 'ALL';
-  alertPage = 0;
-  alertPageSize = 5;
+    | 'alerts' = 'dashboard';
 
   constructor(
     private authService: AuthService,
     private transferService: TransferService,
-    private medicationService: MedicationService
+    private medicationService: MedicationService,
+    private userService: UserService
   ) {
     this.currentUser = this.authService.getCurrentUser();
   }
 
   ngOnInit(): void {
-    this.loadMedications();
+    if (this.currentUser) {
+      this.loadMedications();
+      this.loadFacilities();
+    }
+  }
+
+  get currentFacility(): string {
+    return this.currentUser?.institutionName || this.currentUser?.username || '';
+  }
+
+  loadFacilities(): void {
+    this.userService.getFacilityNames().subscribe({
+      next: (names: string[]) => {
+        this.destinationFacilities = names.filter(
+          (name: string) => name !== this.currentFacility
+        );
+      },
+      error: (err) => console.error('Failed to load facilities', err)
+    });
   }
 
   loadMedications(): void {
     this.medicationService.getMedications().subscribe({
-      next: (data) => {
-        // Sort descending by ID so newest are at the top
-        this.medicaments = data.sort((a, b) => b.id - a.id);
+      next: (data: Medicament[]) => {
+        this.medicaments = data.sort((a: Medicament, b: Medicament) =>
+          (a.name ?? '').localeCompare(b.name ?? '')
+        );
       },
-      error: (err) => console.error('Failed to load medications', err)
+      error: (err) => {
+        console.error('Failed to load medications', err);
+        this.currentUser = null;
+      }
     });
   }
 
@@ -81,189 +96,127 @@ export class App implements OnInit {
   }
 
   saveMed(m: Medicament): void {
+    this.backendError = '';
+
     if (this.selectedMedicament) {
+      if (!this.selectedMedicament.id) {
+        this.backendError = 'Medication ID is missing.';
+        return;
+      }
+
       this.medicationService.updateMedication(this.selectedMedicament.id, m).subscribe({
-        next: (updatedMed) => {
-          this.medicaments = this.medicaments.map(med => 
+        next: (updatedMed: Medicament) => {
+          this.medicaments = this.medicaments.map((med: Medicament) =>
             med.id === updatedMed.id ? updatedMed : med
           );
+
           this.selectedMedicament = null;
         },
-        error: (err) => console.error('Failed to update medication', err)
+        error: (err) => {
+          this.backendError =
+            err.error?.message || err.error?.eroare || 'An error occurred';
+        }
       });
+
       return;
     }
-  
+
     this.medicationService.addMedication(m).subscribe({
-      next: (newMed) => {
+      next: (newMed: Medicament) => {
         this.medicaments = [newMed, ...this.medicaments];
       },
-      error: (err) => console.error('Failed to add medication', err)
+      error: (err) => {
+        this.backendError =
+          err.error?.message || err.error?.eroare || 'An error occurred';
+      }
     });
   }
+
   cancelMedicationEdit(): void {
     this.selectedMedicament = null;
   }
 
-  reserveTransferredStock(event: { medicationId: number; quantity: number }): void {
-    this.medicaments = this.medicaments.map((medicament) => {
-      if (medicament.id !== event.medicationId) {
-        return medicament;
-      }
-
-      return {
-        ...medicament,
-        stock: Math.max(0, medicament.stock - event.quantity)
-      };
-    });
-  }
-
   onLoginSuccess(user: AuthUser): void {
     this.currentUser = user;
+    this.loadFacilities();
+    this.loadMedications();
     this.activeTab = 'dashboard';
   }
 
   logout(): void {
     this.authService.logout();
     this.currentUser = null;
+    this.medicaments = [];
+    this.destinationFacilities = [];
+    this.selectedMedicament = null;
     this.activeTab = 'dashboard';
   }
 
   canAddMedication(): boolean {
-    return this.currentUser?.role === 'ADMIN' || this.currentUser?.role === 'PHARMACIST';
+    return (
+      this.currentUser?.role === 'ADMIN' ||
+      this.currentUser?.role === 'PHARMACIST'
+    );
   }
 
-  canUpdateStock(): boolean {
-    return this.currentUser?.role === 'ADMIN' || this.currentUser?.role === 'PHARMACIST';
+  get activeCount(): number {
+    return this.medicaments.filter((m: Medicament) => m.isActive !== false).length;
   }
 
-  canViewPredictions(): boolean {
-    return this.currentUser?.role === 'ADMIN';
+  get inactiveCount(): number {
+    return this.medicaments.filter((m: Medicament) => m.isActive === false).length;
   }
 
-  getMedicationStatus(m: Medicament): 'LOW_STOCK' | 'EXPIRING' | 'EXPIRED' | 'OK' {
-    if (m.daysUntilExpiry < 0) return 'EXPIRED';
-    if (m.daysUntilExpiry <= 30) return 'EXPIRING';
-    if (m.stock <= 10) return 'LOW_STOCK';
+  get controlledCount(): number {
+    return this.medicaments.filter(
+      (m: Medicament) => m.controlledSubstance
+    ).length;
+  }
+
+  get criticalCount(): number {
+    return this.medicaments.filter(
+      (m: Medicament) =>
+        m.criticality === 'CRITICAL' || m.criticality === 'HIGH'
+    ).length;
+  }
+
+  getMedicationStatus(
+    m: Medicament
+  ): 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW' | 'INACTIVE' | 'OK' {
+    if (!m.isActive) return 'INACTIVE';
+    if (m.criticality === 'CRITICAL') return 'CRITICAL';
+    if (m.criticality === 'HIGH') return 'HIGH';
+    if (m.criticality === 'MEDIUM') return 'MEDIUM';
+    if (m.criticality === 'LOW') return 'LOW';
     return 'OK';
   }
 
   get priorityAlerts(): Medicament[] {
     return this.medicaments.filter(
-      (m: Medicament) => this.getMedicationStatus(m) !== 'OK'
+      (m: Medicament) =>
+        m.criticality === 'CRITICAL' ||
+        m.criticality === 'HIGH' ||
+        m.isActive === false
     );
   }
 
-  get filteredPriorityAlerts(): Medicament[] {
-    return this.priorityAlerts.filter((m: Medicament) => {
-      const search = this.alertSearch.toLowerCase();
-
-      const matchesSearch =
-        m.name.toLowerCase().includes(search) ||
-        m.batchNumber.toLowerCase().includes(search);
-
-      const matchesStatus =
-        this.alertStatus === 'ALL' ||
-        this.getMedicationStatus(m) === this.alertStatus;
-
-      return matchesSearch && matchesStatus;
-    });
-  }
-
-  get paginatedPriorityAlerts(): Medicament[] {
-    const start = this.alertPage * this.alertPageSize;
-    return this.filteredPriorityAlerts.slice(start, start + this.alertPageSize);
-  }
-
-  get alertTotalPages(): number {
-    return Math.max(
-      1,
-      Math.ceil(this.filteredPriorityAlerts.length / this.alertPageSize)
-    );
-  }
-
-  onAlertSearchChange(value: string): void {
-    this.alertSearch = value;
-    this.alertPage = 0;
-  }
-
-  onAlertStatusChange(value: string): void {
-    this.alertStatus = value as 'ALL' | 'LOW_STOCK' | 'EXPIRING' | 'EXPIRED';
-    this.alertPage = 0;
-  }
-
-  nextAlertPage(): void {
-    if (this.alertPage < this.alertTotalPages - 1) {
-      this.alertPage++;
-    }
-  }
-
-  previousAlertPage(): void {
-    if (this.alertPage > 0) {
-      this.alertPage--;
-    }
-  }
-
-  get lowStockCount(): number {
-    return this.medicaments.filter((m: Medicament) => m.stock <= 10).length;
-  }
-
-  get expiredCount(): number {
-    return this.medicaments.filter(
-      (m: Medicament) => m.daysUntilExpiry < 0
-    ).length;
-  }
-
-  get expiringSoonCount(): number {
-    return this.medicaments.filter(
-      (m: Medicament) => m.daysUntilExpiry >= 0 && m.daysUntilExpiry <= 30
-    ).length;
-  }
-
-  get totalEstimatedLoss(): number {
-    return this.medicaments
-      .filter((m: Medicament) => m.daysUntilExpiry < 0)
-      .reduce((sum: number, m: Medicament) => sum + m.stock * m.price, 0);
-  }
-
-  get highestRiskCategory(): string {
-    const categoryLoss: Record<string, number> = {};
-
-    this.medicaments
-      .filter((m: Medicament) => m.daysUntilExpiry < 0)
-      .forEach((m: Medicament) => {
-        const loss = m.stock * m.price;
-        categoryLoss[m.category] = (categoryLoss[m.category] || 0) + loss;
-      });
-
-    let maxCategory = 'N/A';
-    let maxLoss = 0;
-
-    for (const category in categoryLoss) {
-      if (categoryLoss[category] > maxLoss) {
-        maxLoss = categoryLoss[category];
-        maxCategory = category;
-      }
-    }
-
-    return maxCategory;
-  }
-  //edit and delete methods for the medication list component
   editMed(med: Medicament): void {
     this.selectedMedicament = { ...med };
     this.activeTab = 'medications';
   }
-  deleteMed(id: number): void {
+
+  deleteMed(id: string): void {
     const confirmed = confirm('Are you sure you want to delete this medication?');
 
     if (!confirmed) return;
-    
+
     this.medicationService.deleteMedication(id).subscribe({
       next: () => {
-        this.medicaments = this.medicaments.filter((m) => m.id !== id);
+        this.medicaments = this.medicaments.filter(
+          (m: Medicament) => m.id !== id
+        );
       },
       error: (err) => console.error('Failed to delete medication', err)
     });
   }
-
 }

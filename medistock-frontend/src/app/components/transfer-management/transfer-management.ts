@@ -11,12 +11,20 @@ import {
   mapMedicationToFacilityStock
 } from '../../models/transfer';
 import { TransferService } from '../../services/transfer.service';
-import { UserService } from '../../services/user.service';
+import { MedicationDetailsModalComponent } from '../medication-details-modal/medication-details-modal';
+import { HttpClient } from '@angular/common/http';
+
+export interface MedicationBatch {
+  id: string;
+  batchNumber: string;
+  quantityCurrent: number;
+  expiryDate: string;
+}
 
 @Component({
   selector: 'app-transfer-management',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, MedicationDetailsModalComponent],
   templateUrl: './transfer-management.html',
   styleUrl: './transfer-management.scss'
 })
@@ -24,28 +32,56 @@ export class TransferManagementComponent implements OnInit, OnChanges {
   @Input() medicaments: Medicament[] = [];
   @Input() currentUser: AuthUser | null = null;
   @Input() mode: 'transfers' | 'inbox' = 'transfers';
-  @Output() stockTransferred = new EventEmitter<{ medicationId: number; quantity: number }>();
+  @Input() destinationFacilities: string[] = [];
+  @Output() stockTransferred = new EventEmitter<{ medicationId: string; quantity: number }>();
 
   get currentFacility(): string {
-    return this.currentUser?.username || "Spitalul Clinic Județean de Urgență Brașov";
+    return this.currentUser?.institutionName || this.currentUser?.username || 'Central Hospital Pharmacy';
   }
 
-  destinationFacilities: string[] = [];
-  selectedDestination = '';
-
+  transferDirection: 'SEND' | 'REQUEST' = 'SEND';
+  selectedOtherFacility = '';
   candidateStocks: FacilityStock[] = [];
   transfers: TransferRequest[] = [];
+  selectedMedicationId: string | null = null;
+  
+  searchQuery = '';
+  statusFilter: 'ALL' | 'ACTIVE' | 'INACTIVE' = 'ALL';
+  categoryFilter = 'ALL';
 
-  selectedMedicationId: number | null = null;
+  get uniqueCategories(): string[] {
+    const categories = new Set(this.candidateStocks.map(s => s.category).filter(Boolean));
+    return Array.from(categories).sort();
+  }
+
+  get filteredCandidateStocks(): FacilityStock[] {
+    return this.candidateStocks.filter(stock => {
+      const matchesSearch = (stock.medicationName ?? '').toLowerCase().includes(this.searchQuery.toLowerCase());
+      const isActive = stock.isActive !== false;
+      const matchesStatus = this.statusFilter === 'ALL' ||
+                            (this.statusFilter === 'ACTIVE' && isActive) ||
+                            (this.statusFilter === 'INACTIVE' && !isActive);
+      const matchesCategory = this.categoryFilter === 'ALL' || stock.category === this.categoryFilter;
+      
+      return matchesSearch && matchesStatus && matchesCategory;
+    });
+  }
   quantity = 1;
-  reason = 'Expiring stock redistribution before waste.';
+  reason = 'Medication redistribution request.';
   errorMessage = '';
   successMessage = '';
 
+  selectedStockForDetails: FacilityStock | null = null;
+
+  readonly reasonMaxLength = 5000;
+  
+  batches: MedicationBatch[] = [];
+  selectedBatchNumber: string | undefined = undefined;
+
   constructor(
     private transferService: TransferService,
-    private userService: UserService
-  ) { }
+    private http: HttpClient
+  ) {}
 
   ngOnInit(): void {
     this.refreshCandidates();
@@ -55,68 +91,67 @@ export class TransferManagementComponent implements OnInit, OnChanges {
       this.transfers = transfers;
     });
 
-    // Incarcam facilitatile din baza de date
-    this.userService.getFacilityNames().subscribe({
-      next: (names) => {
-        // Excludem facilitatea curenta din lista de destinatii
-        this.destinationFacilities = names.filter(name => name !== this.currentFacility);
-        if (this.destinationFacilities.length > 0) {
-          this.selectedDestination = this.destinationFacilities[0];
-        }
-      },
-      error: (err) => console.error('Failed to load facilities', err)
-    });
+    if (this.destinationFacilities.length > 0) {
+      this.selectedOtherFacility = this.destinationFacilities[0];
+    }
   }
 
   ngOnChanges(changes: SimpleChanges): void {
     if (changes['medicaments']) {
       this.refreshCandidates();
     }
+    if (changes['destinationFacilities'] && this.destinationFacilities.length > 0) {
+      this.selectedOtherFacility = this.destinationFacilities[0];
+    }
+  }
+
+  onMedicationChange(): void {
+    this.fetchBatches();
+  }
+
+  private fetchBatches(): void {
+    this.batches = [];
+    this.selectedBatchNumber = undefined;
+    if (this.selectedMedicationId) {
+      this.http.get<MedicationBatch[]>(`/api/medication/${this.selectedMedicationId}/batches`).subscribe({
+        next: (data) => {
+          this.batches = data;
+        },
+        error: (err) => console.error('Failed to load batches', err)
+      });
+    }
   }
 
   get visibleTransfers(): TransferRequest[] {
-    return this.transfers.filter((transfer) => transfer.fromFacility === this.currentFacility || transfer.toFacility === this.currentFacility);
+    return this.transfers.filter(t => t.fromFacility === this.currentFacility || t.toFacility === this.currentFacility);
   }
 
   get incomingTransfers(): TransferRequest[] {
-    return this.transfers.filter((transfer) => transfer.toFacility === this.currentFacility);
+    return this.transfers.filter(t => t.toFacility === this.currentFacility);
   }
 
   get pendingIncomingTransfers(): TransferRequest[] {
-    return this.incomingTransfers.filter((transfer) => transfer.status === 'PENDING');
+    return this.incomingTransfers.filter(t => t.status === 'PENDING');
   }
 
   get incomingNotificationCount(): number {
     return this.pendingIncomingTransfers.length;
   }
 
-  get outgoingTransfers(): TransferRequest[] {
-    return this.transfers.filter((transfer) => transfer.fromFacility === this.currentFacility);
-  }
-
   get selectedSource(): FacilityStock | undefined {
-    return this.candidateStocks.find(
-      (stock) => stock.medicationId === Number(this.selectedMedicationId)
-    );
+    return this.candidateStocks.find(stock => stock.medicationId === this.selectedMedicationId);
   }
 
   get pendingTransfersCount(): number {
-    return this.transfers.filter((transfer) => transfer.status === 'PENDING').length;
-  }
-
-  get estimatedSavedValue(): number {
-    return this.transfers.reduce(
-      (sum, transfer) => sum + transfer.estimatedSavedValue,
-      0
-    );
-  }
-
-  get expiringCandidatesCount(): number {
-    return this.candidateStocks.length;
+    return this.transfers.filter(t => t.status === 'PENDING').length;
   }
 
   get canManageTransfers(): boolean {
     return this.currentUser?.role === 'ADMIN' || this.currentUser?.role === 'PHARMACIST';
+  }
+
+  get reasonTooLong(): boolean {
+    return this.reason.length > this.reasonMaxLength;
   }
 
   createTransfer(): void {
@@ -126,34 +161,43 @@ export class TransferManagementComponent implements OnInit, OnChanges {
     const source = this.selectedSource;
 
     if (!source) {
-      this.errorMessage = 'Select a medication batch.';
+      this.errorMessage = 'Select a medication.';
       return;
     }
 
-    if (this.quantity < 1 || this.quantity > source.stock) {
-      this.errorMessage = `Quantity must be between 1 and ${source.stock}.`;
+    if (this.quantity < 1) {
+      this.errorMessage = 'Quantity must be at least 1.';
       return;
     }
+
+    if (!this.reason.trim()) {
+      this.errorMessage = 'Reason for transfer is required.';
+      return;
+    }
+
+    if (this.reasonTooLong) {
+      this.errorMessage = `Reason cannot exceed ${this.reasonMaxLength} characters.`;
+      return;
+    }
+
+    const fromFac = this.transferDirection === 'SEND' ? this.currentFacility : this.selectedOtherFacility;
+    const toFac = this.transferDirection === 'SEND' ? this.selectedOtherFacility : this.currentFacility;
 
     const transfer = this.transferService.createTransfer(
       {
         source: {
           ...source,
-          facilityName: this.currentFacility,
+          facilityName: fromFac,
         },
-        toFacility: this.selectedDestination,
+        batchNumber: this.selectedBatchNumber,
+        toFacility: toFac,
         quantity: this.quantity,
         reason: this.reason
       },
-      this.currentUser?.username ?? 'demo-user'
+      this.currentUser?.username ?? 'unknown'
     );
 
-    this.stockTransferred.emit({
-      medicationId: source.medicationId,
-      quantity: this.quantity
-    });
-
-    this.successMessage = `Transfer request #${transfer.id} created. Stock was reserved locally.`;
+    this.successMessage = `Transfer request #${transfer.id} created successfully.`;
     this.quantity = 1;
   }
 
@@ -163,15 +207,53 @@ export class TransferManagementComponent implements OnInit, OnChanges {
 
   private refreshCandidates(): void {
     this.candidateStocks = this.medicaments
-      .filter((medication) =>
-        medication.stock > 0 &&
-        medication.daysUntilExpiry >= 0  // Exclude medicamente expirate
-      )
-      .sort((a, b) => a.daysUntilExpiry - b.daysUntilExpiry)
-      .map((medication) => mapMedicationToFacilityStock(medication, 1, this.currentFacility, 'Brașov'));
+      .map(medication => mapMedicationToFacilityStock(medication, 1, this.currentFacility));
 
-    if (!this.selectedMedicationId && this.candidateStocks.length > 0) {
-      this.selectedMedicationId = this.candidateStocks[0].medicationId;
+    if (!this.selectedMedicationId && this.filteredCandidateStocks.length > 0) {
+      this.selectedMedicationId = this.filteredCandidateStocks[0].medicationId;
+      this.fetchBatches();
     }
+  }
+
+  openDetails(stock: FacilityStock): void {
+    this.selectedStockForDetails = stock;
+  }
+
+  closeDetails(): void {
+    this.selectedStockForDetails = null;
+  }
+
+  onInitiateActionFromModal(event: { recommendation: any, action: 'SEND' | 'REQUEST' }): void {
+    const rec = event.recommendation;
+    this.closeDetails();
+
+    const stock = this.candidateStocks.find(s => s.medicationName === rec.medicationName);
+    const medId = stock ? stock.medicationId : 'unknown';
+    const category = stock ? stock.category : 'Unknown';
+
+    // The recommendation already defines the correct route:
+    // sourceHospitalName → destinationHospitalName
+    const fromFac = rec.sourceHospitalName;
+    const toFac = rec.destinationHospitalName;
+
+    const transfer = this.transferService.createTransfer(
+      {
+        source: {
+          facilityId: 0,
+          facilityName: fromFac,
+          medicationId: medId,
+          medicationName: rec.medicationName,
+          category: category
+        },
+        batchNumber: rec.batchNumber,
+        toFacility: toFac,
+        quantity: rec.recommendedQuantity,
+        reason: `AI Recommended Transfer (Risk: ${rec.riskLevel}). ${rec.reason}`
+      },
+      this.currentUser?.username ?? 'unknown'
+    );
+
+    this.successMessage = `Transfer request #${transfer.id} automatically created from AI recommendation.`;
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 }
