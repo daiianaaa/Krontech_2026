@@ -11,7 +11,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
-import java.util.Optional;
+import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/medication")
@@ -54,7 +54,7 @@ public class MedicationController {
 
     // READ BY ID
     @GetMapping("/{id}")
-    public ResponseEntity<Medication> getMedicationById(@PathVariable Long id) {
+    public ResponseEntity<Medication> getMedicationById(@PathVariable UUID id) {
         return medicationRepository.findById(id)
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
@@ -62,17 +62,26 @@ public class MedicationController {
 
     // UPDATE
     @PutMapping("/{id}")
-    public ResponseEntity<Medication> updateMedication(@PathVariable Long id, @Valid @RequestBody Medication newData) {
+    public ResponseEntity<Medication> updateMedication(@PathVariable UUID id, @RequestBody Medication newData) {
         return medicationRepository.findById(id)
                 .map(existing -> {
+                    existing.setCode(newData.getCode());
                     existing.setName(newData.getName());
+                    existing.setGenericName(newData.getGenericName());
                     existing.setCategory(newData.getCategory());
-                    existing.setStock(newData.getStock());
-                    existing.setExpiryDate(newData.getExpiryDate());
-                    existing.setReceivedDate(newData.getReceivedDate());
-                    existing.setBatchNumber(newData.getBatchNumber());
-                    existing.setPrice(newData.getPrice());
-                    existing.setSupplier(newData.getSupplier());
+                    existing.setTherapeuticClass(newData.getTherapeuticClass());
+                    existing.setForm(newData.getForm());
+                    existing.setConcentration(newData.getConcentration());
+                    existing.setUnit(newData.getUnit());
+                    existing.setCriticality(newData.getCriticality());
+                    existing.setRequiredStorageType(newData.getRequiredStorageType());
+                    existing.setControlledSubstance(newData.getControlledSubstance());
+                    existing.setStandardDailyUsagePerPatient(newData.getStandardDailyUsagePerPatient());
+                    existing.setDefaultMinBufferDays(newData.getDefaultMinBufferDays());
+                    existing.setDefaultTargetBufferDays(newData.getDefaultTargetBufferDays());
+                    existing.setIsActive(newData.getIsActive());
+
+                    // createdAt si updatedAt sunt gestionate automat de @PrePersist / @PreUpdate
 
                     // Nu facem update la 'owner', un medicament ramane la cine l-a creat
                     Medication updated = medicationRepository.save(existing);
@@ -83,7 +92,7 @@ public class MedicationController {
 
     // DELETE
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteMedication(@PathVariable Long id) {
+    public ResponseEntity<Void> deleteMedication(@PathVariable UUID id) {
         if (medicationRepository.existsById(id)) {
             medicationRepository.deleteById(id);
             return ResponseEntity.noContent().build();
