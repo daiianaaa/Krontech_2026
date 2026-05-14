@@ -1,0 +1,242 @@
+<div class="transfer-page">
+    <div class="transfer-header">
+        <div>
+            <p class="eyebrow">B2B Redistribution</p>
+            <h1>Stock Transfers</h1>
+            <p>Move expiring or overstocked batches to another medical unit before they become waste.</p>
+        </div>
+    </div>
+
+    <div class="transfer-kpis">
+        <div class="transfer-kpi">
+            <span>Transfer Candidates</span>
+            <strong>{{ expiringCandidatesCount }}</strong>
+            <p>Batches expiring in max. 60 days</p>
+        </div>
+
+        <div class="transfer-kpi">
+            <span>Pending Requests</span>
+            <strong>{{ pendingTransfersCount }}</strong>
+            <p>Waiting for approval</p>
+        </div>
+
+        <div class="transfer-kpi">
+            <span>Potential Saved Value</span>
+            <strong>{{ estimatedSavedValue }} RON</strong>
+            <p>Estimated stock value protected</p>
+        </div>
+    </div>
+    @if (mode === 'inbox') {
+    <section class="transfer-panel inbox-panel">
+        <div class="inbox-header">
+            <div>
+                <h2>Transfer Inbox</h2>
+                <p>Incoming transfer requests for {{ currentFacility }}</p>
+            </div>
+
+            @if (incomingNotificationCount > 0) {
+            <span class="notification-badge">
+                {{ incomingNotificationCount }} new
+            </span>
+            }
+        </div>
+
+        @if (incomingTransfers.length === 0) {
+        <p class="empty-state">No incoming transfer requests.</p>
+        }
+
+        @for (transfer of incomingTransfers; track transfer.id) {
+        <div class="inbox-item">
+            <div>
+                <strong>{{ transfer.medicationName }}</strong>
+                <p>
+                    {{ transfer.quantity }} units from {{ transfer.fromFacility }}
+                    · Batch {{ transfer.batchNumber }}
+                </p>
+                <span>{{ transfer.reason }}</span>
+            </div>
+
+            <div class="inbox-actions">
+                <span class="transfer-status" [class.pending]="transfer.status === 'PENDING'"
+                    [class.approved]="transfer.status === 'APPROVED'" [class.rejected]="transfer.status === 'REJECTED'"
+                    [class.completed]="transfer.status === 'COMPLETED'">
+                    {{ transfer.status }}
+                </span>
+
+                @if (transfer.status === 'PENDING' && canManageTransfers) {
+                <div class="table-actions">
+                    <button type="button" (click)="updateStatus(transfer.id, 'APPROVED')">
+                        Accept
+                    </button>
+
+                    <button type="button" class="reject" (click)="updateStatus(transfer.id, 'REJECTED')">
+                        Reject
+                    </button>
+                </div>
+                }
+            </div>
+        </div>
+        }
+    </section>
+    }
+
+    @if (mode === 'transfers') {
+    <div class="transfer-grid">
+        <section class="transfer-panel">
+            <h2>All My Institution Transfers</h2>
+
+            @if (!canManageTransfers) {
+            <div class="restricted-card">
+                You do not have permission to create transfers.
+            </div>
+            }
+
+            @if (canManageTransfers) {
+            <form (ngSubmit)="createTransfer()" class="transfer-form">
+                <label>
+                    Source batch
+                    <select name="selectedMedicationId" [(ngModel)]="selectedMedicationId">
+                        @for (stock of candidateStocks; track stock.medicationId) {
+                        <option [ngValue]="stock.medicationId">
+                            {{ stock.medicationName }} · {{ stock.batchNumber }} · {{ stock.stock }} units · {{
+                            stock.daysUntilExpiry }} days
+                        </option>
+                        }
+                    </select>
+                </label>
+
+                <label>
+                    Destination facility
+                    <select name="selectedDestination" [(ngModel)]="selectedDestination">
+                        @for (facility of destinationFacilities; track facility) {
+                        <option [ngValue]="facility">{{ facility }}</option>
+                        }
+                    </select>
+                </label>
+
+                <label>
+                    Quantity
+                    <input type="number" name="quantity" min="1" [(ngModel)]="quantity" />
+                </label>
+
+                <label>
+                    Reason
+                    <textarea name="reason" rows="3" [(ngModel)]="reason"></textarea>
+                </label>
+
+                @if (selectedSource) {
+                <div class="source-summary">
+                    <strong>{{ selectedSource.medicationName }}</strong>
+                    <span>Batch {{ selectedSource.batchNumber }}</span>
+                    <span>Stock: {{ selectedSource.stock }}</span>
+                    <span>Estimated saving: {{ quantity * selectedSource.price | number:'1.0-2' }} RON</span>
+                </div>
+                }
+
+                @if (errorMessage) {
+                <p class="form-message error">{{ errorMessage }}</p>
+                }
+
+                @if (successMessage) {
+                <p class="form-message success">{{ successMessage }}</p>
+                }
+
+                <button type="submit">Create Transfer</button>
+            </form>
+            }
+        </section>
+
+        <section class="transfer-panel">
+            <h2>AI Recommended Transfers (Candidates)</h2>
+
+            @for (stock of candidateStocks.slice(0, 8); track stock.medicationId) {
+            <div class="candidate-row">
+                <div>
+                    <strong>{{ stock.medicationName }}</strong>
+                    <p>{{ stock.category }} · Batch {{ stock.batchNumber }}</p>
+                </div>
+
+                <div class="candidate-meta">
+                    <span>{{ stock.stock }} units</span>
+                    <strong [class.critical]="stock.daysUntilExpiry <= 30">
+                        {{ stock.daysUntilExpiry }} days
+                    </strong>
+                </div>
+            </div>
+            }
+
+            @if (candidateStocks.length === 0) {
+            <p class="empty-state">No transfer candidates at the moment.</p>
+            }
+        </section>
+    </div>
+    }
+
+    @if (mode === 'transfers') {
+    <section class="transfer-panel transfer-history">
+        <h2>Transfer Requests</h2>
+
+        <table>
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Medication</th>
+                    <th>From</th>
+                    <th>To</th>
+                    <th>Quantity</th>
+                    <th>Status</th>
+                    <th>Saved Value</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+
+            <tbody>
+                @for (transfer of transfers; track transfer.id) {
+                <tr>
+                    <td>#{{ transfer.id }}</td>
+
+                    <td>
+                        <strong>{{ transfer.medicationName }}</strong><br />
+                        <span>Batch {{ transfer.batchNumber }}</span>
+                    </td>
+
+                    <td>{{ transfer.fromFacility }}</td>
+                    <td>{{ transfer.toFacility }}</td>
+                    <td>{{ transfer.quantity }}</td>
+
+                    <td>
+                        <span class="transfer-status" [class.pending]="transfer.status === 'PENDING'"
+                            [class.approved]="transfer.status === 'APPROVED'"
+                            [class.rejected]="transfer.status === 'REJECTED'"
+                            [class.completed]="transfer.status === 'COMPLETED'">
+                            {{ transfer.status }}
+                        </span>
+                    </td>
+
+                    <td>{{ transfer.estimatedSavedValue }} RON</td>
+
+                    <td>
+                        @if (transfer.status === 'PENDING' && canManageTransfers) {
+                        <div class="table-actions">
+                            <button type="button" (click)="updateStatus(transfer.id, 'APPROVED')">
+                                Approve
+                            </button>
+                            <button type="button" class="reject" (click)="updateStatus(transfer.id, 'REJECTED')">
+                                Reject
+                            </button>
+                        </div>
+                        }
+
+                        @if (transfer.status === 'APPROVED' && canManageTransfers) {
+                        <button type="button" class="complete" (click)="updateStatus(transfer.id, 'COMPLETED')">
+                            Complete
+                        </button>
+                        }
+                    </td>
+                </tr>
+                }
+            </tbody>
+        </table>
+    </section>
+    }
+</div>
