@@ -7,6 +7,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/users")
@@ -19,39 +20,41 @@ public class UserController {
         this.userRepository = userRepository;
     }
 
-    // CREATE: Adaugă un utilizator (Spital/Farmacie/Administrativ)
+    // CREATE: Adaugă un utilizator
     @PostMapping
     public ResponseEntity<User> createUser(@RequestBody User user) {
         User savedUser = userRepository.save(user);
         return new ResponseEntity<>(savedUser, HttpStatus.CREATED);
     }
 
-    // READ: Lista cu toate instituțiile
+    // READ: Lista cu toți utilizatorii
     @GetMapping
     public List<User> getAllUsers() {
         return userRepository.findAll();
     }
 
-    // READ: Detalii despre o singură instituție
+    // READ: Detalii despre un singur utilizator
     @GetMapping("/{id}")
-    public ResponseEntity<User> getUserById(@PathVariable Long id) {
+    public ResponseEntity<User> getUserById(@PathVariable UUID id) {
         return userRepository.findById(id)
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
     }
 
-    // UPDATE: Modifică datele unui spital/farmacii
+    // UPDATE: Modifică datele unui utilizator
     @PutMapping("/{id}")
-    public ResponseEntity<User> updateUser(@PathVariable Long id, @RequestBody User newData) {
+    public ResponseEntity<User> updateUser(@PathVariable UUID id, @RequestBody User newData) {
         return userRepository.findById(id)
                 .map(existing -> {
-                    existing.setName(newData.getName());
-                    existing.setType(newData.getType());
-                    existing.setRegion(newData.getRegion());
-                    existing.setAddress(newData.getAddress());
+                    // Mapăm noile atribute din structura tabelei app_users
+                    existing.setFullName(newData.getFullName());
+                    existing.setRole(newData.getRole());
+                    existing.setEmail(newData.getEmail());
                     existing.setUsername(newData.getUsername());
+                    existing.setHospitalId(newData.getHospitalId());
+                    existing.setIsActive(newData.getIsActive());
 
-                    // Actualizăm parola doar dacă e trimisă, altfel e periculos
+                    // Actualizăm parola doar dacă e trimisă
                     if (newData.getPassword() != null && !newData.getPassword().isEmpty()) {
                         existing.setPassword(newData.getPassword());
                     }
@@ -64,7 +67,7 @@ public class UserController {
 
     // DELETE: Șterge un utilizator
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteUser(@PathVariable Long id) {
+    public ResponseEntity<Void> deleteUser(@PathVariable UUID id) {
         if (userRepository.existsById(id)) {
             userRepository.deleteById(id);
             return ResponseEntity.noContent().build();
