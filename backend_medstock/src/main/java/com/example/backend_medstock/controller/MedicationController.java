@@ -1,16 +1,15 @@
 package com.example.backend_medstock.controller;
 
 import com.example.backend_medstock.model.Medication;
-import com.example.backend_medstock.model.User;
 import com.example.backend_medstock.repository.MedicationRepository;
-import com.example.backend_medstock.repository.UserRepository;
-import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.Authentication;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 @RestController
@@ -19,37 +18,38 @@ import java.util.UUID;
 public class MedicationController {
 
     private final MedicationRepository medicationRepository;
-    private final UserRepository userRepository;
+    private final JdbcTemplate jdbcTemplate;
 
-    public MedicationController(MedicationRepository medicationRepository, UserRepository userRepository) {
+    public MedicationController(MedicationRepository medicationRepository, JdbcTemplate jdbcTemplate) {
         this.medicationRepository = medicationRepository;
-        this.userRepository = userRepository;
+        this.jdbcTemplate = jdbcTemplate;
     }
 
     // CREATE
     @PostMapping
-    public ResponseEntity<?> createMedication(@Valid @RequestBody Medication medication, Authentication authentication) {
-        // 1. Luam username-ul din token-ul JWT care a fost validat deja
-        String currentUsername = authentication.getName();
-
-        // 2. Cautam utilizatorul in baza de date
-        Optional<User> currentUserOpt = userRepository.findByUsername(currentUsername);
-
-        if (currentUserOpt.isEmpty()) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Utilizatorul nu a fost găsit!");
-        }
-
-        // 3. Setam owner-ul si salvam medicamentul
-        medication.setOwner(currentUserOpt.get());
+    public ResponseEntity<Medication> createMedication(@RequestBody Medication medication) {
         Medication savedMedication = medicationRepository.save(medication);
-
         return new ResponseEntity<>(savedMedication, HttpStatus.CREATED);
     }
 
-    // READ ALL
+    // READ ALL & FILTER
     @GetMapping
-    public List<Medication> getAllMedications() {
-        return medicationRepository.findAll();
+    public List<Medication> getAllMedications(
+            @RequestParam(required = false) String name,
+            @RequestParam(required = false) String category,
+            @RequestParam(required = false) Boolean isActive) {
+
+        // 1. Curățăm parametrii. Dacă primim un string gol (""), îl transformăm forțat în null.
+        String filterName = (name != null && !name.trim().isEmpty()) ? name.trim() : null;
+        String filterCategory = (category != null && !category.trim().isEmpty()) ? category.trim() : null;
+
+        // 2. Verificăm dacă TOATE filtrele sunt efectiv nule
+        if (filterName == null && filterCategory == null && isActive == null) {
+            return medicationRepository.findAll(); // Returnează tot dacă nu e niciun filtru
+        }
+
+        // 3. Apelăm repository-ul cu filtrele curățate
+        return medicationRepository.filterMedications(filterName, filterCategory, isActive);
     }
 
     // READ BY ID
@@ -58,6 +58,25 @@ public class MedicationController {
         return medicationRepository.findById(id)
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
+    }
+
+    // READ BATCHES
+    @GetMapping("/{id}/batches")
+    public ResponseEntity<List<Map<String, Object>>> getBatchesByMedication(@PathVariable UUID id) {
+        String sql = "SELECT id, batch_number, quantity_current, expiry_date " +
+                "FROM medication_batches " +
+                "WHERE medication_id = ? AND quantity_current > 0 " +
+                "ORDER BY expiry_date ASC";
+        List<Map<String, Object>> rows = jdbcTemplate.queryForList(sql, id);
+        List<Map<String, Object>> result = rows.stream().map(r -> {
+            Map<String, Object> map = new HashMap<>();
+            map.put("id", r.get("id"));
+            map.put("batchNumber", r.get("batch_number"));
+            map.put("quantityCurrent", r.get("quantity_current"));
+            map.put("expiryDate", r.get("expiry_date"));
+            return map;
+        }).toList();
+        return ResponseEntity.ok(result);
     }
 
     // UPDATE
@@ -83,7 +102,6 @@ public class MedicationController {
 
                     // createdAt si updatedAt sunt gestionate automat de @PrePersist / @PreUpdate
 
-                    // Nu facem update la 'owner', un medicament ramane la cine l-a creat
                     Medication updated = medicationRepository.save(existing);
                     return ResponseEntity.ok(updated);
                 })
