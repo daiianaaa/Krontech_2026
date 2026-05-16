@@ -1,5 +1,8 @@
 package com.example.backend_medstock.service;
 
+import com.example.backend_medstock.dto.UserCreateDTO;
+import com.example.backend_medstock.dto.UserResponseDTO;
+import com.example.backend_medstock.dto.UserMapper;
 import com.example.backend_medstock.model.User;
 import com.example.backend_medstock.repository.UserRepository;
 import org.springframework.stereotype.Service;
@@ -7,43 +10,54 @@ import org.springframework.stereotype.Service;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Service
 public class UserService {
 
     private final UserRepository userRepository;
+    private final UserMapper userMapper;
 
-    public UserService(UserRepository userRepository) {
+    // Injectăm și Mapper-ul
+    public UserService(UserRepository userRepository, UserMapper userMapper) {
         this.userRepository = userRepository;
+        this.userMapper = userMapper;
     }
 
-    // CREATE
-    public User createUser(User user) {
-        // Dacă e cazul, pe viitor aici vom cripta și parola înainte de salvare
-        return userRepository.save(user);
+    // CREATE (Primim datele brute, returnăm datele sigure)
+    public UserResponseDTO createUser(UserCreateDTO dto) {
+        User user = userMapper.toEntity(dto);
+        // Aici pe viitor vei adăuga criptarea parolei înainte de save
+        User savedUser = userRepository.save(user);
+        return userMapper.toResponseDTO(savedUser);
     }
 
-    // READ ALL
-    public List<User> getAllUsers() {
-        return userRepository.findAll();
+    // READ ALL (Folosim stream-uri pentru a mapa toată lista)
+    public List<UserResponseDTO> getAllUsers() {
+        return userRepository.findAll()
+                .stream()
+                .map(userMapper::toResponseDTO)
+                .collect(Collectors.toList());
     }
 
     // READ BY ID
-    public Optional<User> getUserById(UUID id) {
-        return userRepository.findById(id);
+    public Optional<UserResponseDTO> getUserById(UUID id) {
+        return userRepository.findById(id)
+                .map(userMapper::toResponseDTO);
     }
 
     // UPDATE
-    public Optional<User> updateUser(UUID id, User newData) {
+    public Optional<UserResponseDTO> updateUser(UUID id, UserCreateDTO newData) {
         if (!userRepository.existsById(id)) {
             return Optional.empty();
         }
-        newData.setId(id);
-        // La fel, dacă se face update la parolă, va trebui criptată aici
-        return Optional.of(userRepository.save(newData));
+        User userToUpdate = userMapper.toEntity(newData);
+        userToUpdate.setId(id);
+        User updatedUser = userRepository.save(userToUpdate);
+        return Optional.of(userMapper.toResponseDTO(updatedUser));
     }
 
-    // DELETE
+    // DELETE (Rămâne neschimbat)
     public boolean deleteUser(UUID id) {
         if (userRepository.existsById(id)) {
             userRepository.deleteById(id);

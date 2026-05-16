@@ -1,6 +1,7 @@
 package com.example.backend_medstock.controller;
 
-import com.example.backend_medstock.model.User;
+import com.example.backend_medstock.dto.UserCreateDTO;
+import com.example.backend_medstock.dto.UserResponseDTO;
 import com.example.backend_medstock.service.UserService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -16,31 +17,30 @@ public class UserController {
 
     private final UserService userService;
 
-    // Injectăm Service-ul
     public UserController(UserService userService) {
         this.userService = userService;
     }
 
     @PostMapping
-    public ResponseEntity<User> createUser(@RequestBody User user) {
-        User savedUser = userService.createUser(user);
+    public ResponseEntity<UserResponseDTO> createUser(@RequestBody UserCreateDTO userDto) {
+        UserResponseDTO savedUser = userService.createUser(userDto);
         return new ResponseEntity<>(savedUser, HttpStatus.CREATED);
     }
 
     @GetMapping
-    public ResponseEntity<List<User>> getAllUsers() {
+    public ResponseEntity<List<UserResponseDTO>> getAllUsers() {
         return ResponseEntity.ok(userService.getAllUsers());
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<User> getUserById(@PathVariable UUID id) {
+    public ResponseEntity<UserResponseDTO> getUserById(@PathVariable UUID id) {
         return userService.getUserById(id)
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<User> updateUser(@PathVariable UUID id, @RequestBody User newData) {
+    public ResponseEntity<UserResponseDTO> updateUser(@PathVariable UUID id, @RequestBody UserCreateDTO newData) {
         return userService.updateUser(id, newData)
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());

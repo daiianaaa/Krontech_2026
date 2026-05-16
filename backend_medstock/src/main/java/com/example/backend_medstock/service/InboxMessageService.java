@@ -1,5 +1,8 @@
 package com.example.backend_medstock.service;
 
+import com.example.backend_medstock.dto.InboxMessageCreateDTO;
+import com.example.backend_medstock.dto.InboxMessageResponseDTO;
+import com.example.backend_medstock.mapper.InboxMessageMapper;
 import com.example.backend_medstock.model.InboxMessage;
 import com.example.backend_medstock.repository.InboxMessageRepository;
 import org.springframework.stereotype.Service;
@@ -8,48 +11,57 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Service
 public class InboxMessageService {
 
     private final InboxMessageRepository inboxMessageRepository;
+    private final InboxMessageMapper inboxMessageMapper;
 
-    public InboxMessageService(InboxMessageRepository inboxMessageRepository) {
+    public InboxMessageService(InboxMessageRepository inboxMessageRepository, InboxMessageMapper inboxMessageMapper) {
         this.inboxMessageRepository = inboxMessageRepository;
+        this.inboxMessageMapper = inboxMessageMapper;
     }
 
     // CREATE
-    public InboxMessage createMessage(InboxMessage message) {
-        return inboxMessageRepository.save(message);
+    public InboxMessageResponseDTO createMessage(InboxMessageCreateDTO dto) {
+        InboxMessage message = inboxMessageMapper.toEntity(dto);
+        InboxMessage savedMessage = inboxMessageRepository.save(message);
+        return inboxMessageMapper.toResponseDTO(savedMessage);
     }
 
     // READ ALL
-    public List<InboxMessage> getAllMessages() {
-        return inboxMessageRepository.findAll();
+    public List<InboxMessageResponseDTO> getAllMessages() {
+        return inboxMessageRepository.findAll()
+                .stream()
+                .map(inboxMessageMapper::toResponseDTO)
+                .collect(Collectors.toList());
     }
 
     // READ BY ID
-    public Optional<InboxMessage> getMessageById(UUID id) {
-        return inboxMessageRepository.findById(id);
+    public Optional<InboxMessageResponseDTO> getMessageById(UUID id) {
+        return inboxMessageRepository.findById(id)
+                .map(inboxMessageMapper::toResponseDTO);
     }
 
     // UPDATE
-    public Optional<InboxMessage> updateMessage(UUID id, InboxMessage newData) {
+    public Optional<InboxMessageResponseDTO> updateMessage(UUID id, InboxMessageCreateDTO newData) {
         if (!inboxMessageRepository.existsById(id)) {
             return Optional.empty();
         }
-        // Reparare: Lombok a generat setInboxId conform numelui variabilei tale
-        newData.setInboxId(id);
-        return Optional.of(inboxMessageRepository.save(newData));
+        InboxMessage messageToUpdate = inboxMessageMapper.toEntity(newData);
+        messageToUpdate.setInboxId(id);
+        InboxMessage updatedMessage = inboxMessageRepository.save(messageToUpdate);
+        return Optional.of(inboxMessageMapper.toResponseDTO(updatedMessage));
     }
 
     // UPDATE - MARCHEAZĂ CA CITIT
-    public Optional<InboxMessage> markAsRead(UUID id) {
+    public Optional<InboxMessageResponseDTO> markAsRead(UUID id) {
         return inboxMessageRepository.findById(id).map(message -> {
-            // Reparare: Folosim logica ta excelentă cu status și dată de citire
             message.setInboxStatus("read");
             message.setReadAt(LocalDateTime.now());
-            return inboxMessageRepository.save(message);
+            return inboxMessageMapper.toResponseDTO(inboxMessageRepository.save(message));
         });
     }
 

@@ -1,6 +1,7 @@
 package com.example.backend_medstock.controller;
 
-import com.example.backend_medstock.model.TransferRequest;
+import com.example.backend_medstock.dto.TransferRequestCreateDTO;
+import com.example.backend_medstock.dto.TransferRequestResponseDTO;
 import com.example.backend_medstock.service.TransferRequestService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -17,55 +18,54 @@ public class TransferRequestController {
 
     private final TransferRequestService transferRequestService;
 
-    // AICI este schimbarea cheie: Injectăm Service-ul, NU Repository-ul!
     public TransferRequestController(TransferRequestService transferRequestService) {
         this.transferRequestService = transferRequestService;
     }
 
     @PostMapping
-    public ResponseEntity<TransferRequest> createTransferRequest(@RequestBody TransferRequest transferRequest) {
-        TransferRequest savedRequest = transferRequestService.createTransferRequest(transferRequest);
+    public ResponseEntity<TransferRequestResponseDTO> createTransferRequest(@RequestBody TransferRequestCreateDTO dto) {
+        TransferRequestResponseDTO savedRequest = transferRequestService.createTransferRequest(dto);
         return new ResponseEntity<>(savedRequest, HttpStatus.CREATED);
     }
 
     @GetMapping
-    public List<TransferRequest> getAllTransferRequests() {
-        return transferRequestService.getAllTransferRequests();
+    public ResponseEntity<List<TransferRequestResponseDTO>> getAllTransferRequests() {
+        return ResponseEntity.ok(transferRequestService.getAllTransferRequests());
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<TransferRequest> getTransferRequestById(@PathVariable UUID id) {
+    public ResponseEntity<TransferRequestResponseDTO> getTransferRequestById(@PathVariable UUID id) {
         return transferRequestService.getTransferRequestById(id)
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
     }
 
     @GetMapping("/sent/{senderId}")
-    public List<TransferRequest> getSentRequests(@PathVariable UUID senderId) {
-        return transferRequestService.getSentRequests(senderId);
+    public ResponseEntity<List<TransferRequestResponseDTO>> getSentRequests(@PathVariable UUID senderId) {
+        return ResponseEntity.ok(transferRequestService.getSentRequests(senderId));
     }
 
     @GetMapping("/received/{receiverId}")
-    public List<TransferRequest> getReceivedRequests(@PathVariable UUID receiverId) {
-        return transferRequestService.getReceivedRequests(receiverId);
+    public ResponseEntity<List<TransferRequestResponseDTO>> getReceivedRequests(@PathVariable UUID receiverId) {
+        return ResponseEntity.ok(transferRequestService.getReceivedRequests(receiverId));
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<TransferRequest> updateTransferRequest(@PathVariable UUID id, @RequestBody TransferRequest newData) {
+    public ResponseEntity<TransferRequestResponseDTO> updateTransferRequest(@PathVariable UUID id, @RequestBody TransferRequestCreateDTO newData) {
         return transferRequestService.updateTransferRequest(id, newData)
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
     }
 
     @PutMapping("/{id}/accept")
-    public ResponseEntity<TransferRequest> acceptTransferRequest(@PathVariable UUID id, @RequestParam UUID acceptedByUserId) {
+    public ResponseEntity<TransferRequestResponseDTO> acceptTransferRequest(@PathVariable UUID id, @RequestParam UUID acceptedByUserId) {
         return transferRequestService.acceptTransferRequest(id, acceptedByUserId)
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
     }
 
     @PutMapping("/{id}/reject")
-    public ResponseEntity<TransferRequest> rejectTransferRequest(
+    public ResponseEntity<TransferRequestResponseDTO> rejectTransferRequest(
             @PathVariable UUID id,
             @RequestParam UUID rejectedByUserId,
             @RequestBody(required = false) Map<String, String> payload) {

@@ -1,5 +1,8 @@
 package com.example.backend_medstock.service;
 
+import com.example.backend_medstock.dto.TransferRequestCreateDTO;
+import com.example.backend_medstock.dto.TransferRequestResponseDTO;
+import com.example.backend_medstock.mapper.TransferRequestMapper;
 import com.example.backend_medstock.model.TransferRequest;
 import com.example.backend_medstock.repository.TransferRequestRepository;
 import org.springframework.stereotype.Service;
@@ -9,55 +12,71 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
-@Service // Această adnotare îi spune lui Spring Boot că aici e logica de business
+@Service
 public class TransferRequestService {
 
     private final TransferRequestRepository transferRequestRepository;
+    private final TransferRequestMapper transferRequestMapper;
 
-    // Injectăm Repository-ul aici, în Service
-    public TransferRequestService(TransferRequestRepository transferRequestRepository) {
+    public TransferRequestService(TransferRequestRepository transferRequestRepository, TransferRequestMapper transferRequestMapper) {
         this.transferRequestRepository = transferRequestRepository;
+        this.transferRequestMapper = transferRequestMapper;
     }
 
-    public TransferRequest createTransferRequest(TransferRequest transferRequest) {
-        return transferRequestRepository.save(transferRequest);
+    public TransferRequestResponseDTO createTransferRequest(TransferRequestCreateDTO dto) {
+        TransferRequest request = transferRequestMapper.toEntity(dto);
+        TransferRequest savedRequest = transferRequestRepository.save(request);
+        return transferRequestMapper.toResponseDTO(savedRequest);
     }
 
-    public List<TransferRequest> getAllTransferRequests() {
-        return transferRequestRepository.findAll();
+    public List<TransferRequestResponseDTO> getAllTransferRequests() {
+        return transferRequestRepository.findAll()
+                .stream()
+                .map(transferRequestMapper::toResponseDTO)
+                .collect(Collectors.toList());
     }
 
-    public Optional<TransferRequest> getTransferRequestById(UUID id) {
-        return transferRequestRepository.findById(id);
+    public Optional<TransferRequestResponseDTO> getTransferRequestById(UUID id) {
+        return transferRequestRepository.findById(id)
+                .map(transferRequestMapper::toResponseDTO);
     }
 
-    public List<TransferRequest> getSentRequests(UUID senderId) {
-        return transferRequestRepository.findBySenderHospitalId(senderId);
+    public List<TransferRequestResponseDTO> getSentRequests(UUID senderId) {
+        return transferRequestRepository.findBySenderHospitalId(senderId)
+                .stream()
+                .map(transferRequestMapper::toResponseDTO)
+                .collect(Collectors.toList());
     }
 
-    public List<TransferRequest> getReceivedRequests(UUID receiverId) {
-        return transferRequestRepository.findByReceiverHospitalId(receiverId);
+    public List<TransferRequestResponseDTO> getReceivedRequests(UUID receiverId) {
+        return transferRequestRepository.findByReceiverHospitalId(receiverId)
+                .stream()
+                .map(transferRequestMapper::toResponseDTO)
+                .collect(Collectors.toList());
     }
 
-    public Optional<TransferRequest> updateTransferRequest(UUID id, TransferRequest newData) {
+    public Optional<TransferRequestResponseDTO> updateTransferRequest(UUID id, TransferRequestCreateDTO newData) {
         if (!transferRequestRepository.existsById(id)) {
             return Optional.empty();
         }
-        newData.setTransactionId(id);
-        return Optional.of(transferRequestRepository.save(newData));
+        TransferRequest requestToUpdate = transferRequestMapper.toEntity(newData);
+        requestToUpdate.setTransactionId(id);
+        TransferRequest updatedRequest = transferRequestRepository.save(requestToUpdate);
+        return Optional.of(transferRequestMapper.toResponseDTO(updatedRequest));
     }
 
-    public Optional<TransferRequest> acceptTransferRequest(UUID id, UUID acceptedByUserId) {
+    public Optional<TransferRequestResponseDTO> acceptTransferRequest(UUID id, UUID acceptedByUserId) {
         return transferRequestRepository.findById(id).map(request -> {
             request.setStatus("accepted");
             request.setAcceptedBy(acceptedByUserId);
             request.setAcceptedAt(LocalDateTime.now());
-            return transferRequestRepository.save(request);
+            return transferRequestMapper.toResponseDTO(transferRequestRepository.save(request));
         });
     }
 
-    public Optional<TransferRequest> rejectTransferRequest(UUID id, UUID rejectedByUserId, Map<String, String> payload) {
+    public Optional<TransferRequestResponseDTO> rejectTransferRequest(UUID id, UUID rejectedByUserId, Map<String, String> payload) {
         return transferRequestRepository.findById(id).map(request -> {
             request.setStatus("rejected");
             request.setRejectedBy(rejectedByUserId);
@@ -66,7 +85,7 @@ public class TransferRequestService {
             if (payload != null && payload.containsKey("rejectionReason")) {
                 request.setRejectionReason(payload.get("rejectionReason"));
             }
-            return transferRequestRepository.save(request);
+            return transferRequestMapper.toResponseDTO(transferRequestRepository.save(request));
         });
     }
 
