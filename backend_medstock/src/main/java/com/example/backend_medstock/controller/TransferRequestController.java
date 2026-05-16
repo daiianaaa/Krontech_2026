@@ -8,6 +8,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 @RestController
@@ -34,7 +35,7 @@ public class TransferRequestController {
         return transferRequestRepository.findAll();
     }
 
-    // READ BY ID: O singură cerere
+    // READ BY ID: O singură cerere după ID-ul ei tranzacțional
     @GetMapping("/{id}")
     public ResponseEntity<TransferRequest> getTransferRequestById(@PathVariable UUID id) {
         return transferRequestRepository.findById(id)
@@ -42,32 +43,35 @@ public class TransferRequestController {
                 .orElse(ResponseEntity.notFound().build());
     }
 
-    // GET cereri trimise de un anumit spital
+    // GET: Cereri trimise de un anumit spital (unde spitalul este inițiator)
     @GetMapping("/sent/{senderId}")
     public List<TransferRequest> getSentRequests(@PathVariable UUID senderId) {
         return transferRequestRepository.findBySenderHospitalId(senderId);
     }
 
-    // GET cereri primite de un anumit spital
+    // GET: Cereri primite de un anumit spital (care trebuie să le aprobe/respingă)
     @GetMapping("/received/{receiverId}")
     public List<TransferRequest> getReceivedRequests(@PathVariable UUID receiverId) {
         return transferRequestRepository.findByReceiverHospitalId(receiverId);
     }
 
-    // UPDATE COMPLET: Actualizează toată cererea
+    // UPDATE COMPLET: Actualizează toate câmpurile unei cereri
     @PutMapping("/{id}")
     public ResponseEntity<TransferRequest> updateTransferRequest(@PathVariable UUID id, @RequestBody TransferRequest newData) {
         if (!transferRequestRepository.existsById(id)) {
             return ResponseEntity.notFound().build();
         }
-        newData.setTransactionId(id); // Asigurăm că nu suprascriem alt ID
+        newData.setTransactionId(id);
         TransferRequest updatedRequest = transferRequestRepository.save(newData);
         return ResponseEntity.ok(updatedRequest);
     }
 
-    // UPDATE STATUS ACCEPTED (Exemplu de logică specifică de business)
+    // UPDATE STATUS: Aprobarea transferului
     @PutMapping("/{id}/accept")
-    public ResponseEntity<TransferRequest> acceptTransferRequest(@PathVariable UUID id, @RequestParam UUID acceptedByUserId) {
+    public ResponseEntity<TransferRequest> acceptTransferRequest(
+            @PathVariable UUID id,
+            @RequestParam UUID acceptedByUserId) {
+
         return transferRequestRepository.findById(id)
                 .map(request -> {
                     request.setStatus("accepted");
@@ -78,7 +82,30 @@ public class TransferRequestController {
                 .orElse(ResponseEntity.notFound().build());
     }
 
-    // DELETE
+    // UPDATE STATUS: Respingerea transferului (cu salvarea motivului)
+    @PutMapping("/{id}/reject")
+    public ResponseEntity<TransferRequest> rejectTransferRequest(
+            @PathVariable UUID id,
+            @RequestParam UUID rejectedByUserId,
+            @RequestBody(required = false) Map<String, String> payload) {
+
+        return transferRequestRepository.findById(id)
+                .map(request -> {
+                    request.setStatus("rejected");
+                    request.setRejectedBy(rejectedByUserId);
+                    request.setRejectedAt(LocalDateTime.now());
+
+                    // Extragem motivul respingerii din corpul JSON, dacă frontend-ul l-a trimis
+                    if (payload != null && payload.containsKey("rejectionReason")) {
+                        request.setRejectionReason(payload.get("rejectionReason"));
+                    }
+
+                    return ResponseEntity.ok(transferRequestRepository.save(request));
+                })
+                .orElse(ResponseEntity.notFound().build());
+    }
+
+    // DELETE: Ștergerea unei înregistrări de transfer
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteTransferRequest(@PathVariable UUID id) {
         if (transferRequestRepository.existsById(id)) {
