@@ -1,12 +1,11 @@
 package com.example.backend_medstock.controller;
 
 import com.example.backend_medstock.model.InboxMessage;
-import com.example.backend_medstock.repository.InboxMessageRepository;
+import com.example.backend_medstock.service.InboxMessageService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 
@@ -15,58 +14,57 @@ import java.util.UUID;
 @CrossOrigin
 public class InboxMessageController {
 
-    private final InboxMessageRepository inboxMessageRepository;
+    private final InboxMessageService inboxMessageService;
 
-    public InboxMessageController(InboxMessageRepository inboxMessageRepository) {
-        this.inboxMessageRepository = inboxMessageRepository;
+    // Injectăm exclusiv Service-ul!
+    public InboxMessageController(InboxMessageService inboxMessageService) {
+        this.inboxMessageService = inboxMessageService;
     }
 
-    // CREATE: Trimite un mesaj nou
     @PostMapping
     public ResponseEntity<InboxMessage> createMessage(@RequestBody InboxMessage message) {
-        InboxMessage savedMessage = inboxMessageRepository.save(message);
+        InboxMessage savedMessage = inboxMessageService.createMessage(message);
         return new ResponseEntity<>(savedMessage, HttpStatus.CREATED);
     }
 
-    // READ ALL: Toate mesajele din sistem
     @GetMapping
-    public List<InboxMessage> getAllMessages() {
-        return inboxMessageRepository.findAll();
+    public ResponseEntity<List<InboxMessage>> getAllMessages() {
+        return ResponseEntity.ok(inboxMessageService.getAllMessages());
     }
 
-    // READ BY ID: Un singur mesaj
     @GetMapping("/{id}")
     public ResponseEntity<InboxMessage> getMessageById(@PathVariable UUID id) {
-        return inboxMessageRepository.findById(id)
+        return inboxMessageService.getMessageById(id)
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
     }
 
-    // READ BY RECEIVER: Toate mesajele pentru un anumit spital
-    @GetMapping("/hospital/{receiverId}")
-    public List<InboxMessage> getMessagesForHospital(@PathVariable UUID receiverId) {
-        return inboxMessageRepository.findByReceiverHospitalId(receiverId);
+    // Exemplu rută pentru inbox-ul unui spital
+    /*
+    @GetMapping("/hospital/{hospitalId}")
+    public ResponseEntity<List<InboxMessage>> getMessagesByHospitalId(@PathVariable UUID hospitalId) {
+        return ResponseEntity.ok(inboxMessageService.getMessagesByHospitalId(hospitalId));
     }
+    */
 
-    // UPDATE: Marchează mesajul ca citit (sau actualizează alte statusuri)
-    @PutMapping("/{id}/read")
-    public ResponseEntity<InboxMessage> markAsRead(@PathVariable UUID id) {
-        return inboxMessageRepository.findById(id)
-                .map(existingMessage -> {
-                    existingMessage.setInboxStatus("read");
-                    existingMessage.setReadAt(LocalDateTime.now());
-
-                    InboxMessage updated = inboxMessageRepository.save(existingMessage);
-                    return ResponseEntity.ok(updated);
-                })
+    @PutMapping("/{id}")
+    public ResponseEntity<InboxMessage> updateMessage(@PathVariable UUID id, @RequestBody InboxMessage newData) {
+        return inboxMessageService.updateMessage(id, newData)
+                .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
     }
 
-    // DELETE: Șterge un mesaj
+    // Endpoint specific pentru a marca un mesaj ca citit
+    @PutMapping("/{id}/read")
+    public ResponseEntity<InboxMessage> markAsRead(@PathVariable UUID id) {
+        return inboxMessageService.markAsRead(id)
+                .map(ResponseEntity::ok)
+                .orElse(ResponseEntity.notFound().build());
+    }
+
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteMessage(@PathVariable UUID id) {
-        if (inboxMessageRepository.existsById(id)) {
-            inboxMessageRepository.deleteById(id);
+        if (inboxMessageService.deleteMessage(id)) {
             return ResponseEntity.noContent().build();
         }
         return ResponseEntity.notFound().build();

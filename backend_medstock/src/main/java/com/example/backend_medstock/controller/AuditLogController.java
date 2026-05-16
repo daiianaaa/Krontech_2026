@@ -1,7 +1,7 @@
 package com.example.backend_medstock.controller;
 
 import com.example.backend_medstock.model.AuditLog;
-import com.example.backend_medstock.repository.AuditLogRepository;
+import com.example.backend_medstock.service.AuditLogService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -14,34 +14,33 @@ import java.util.UUID;
 @CrossOrigin
 public class AuditLogController {
 
-    private final AuditLogRepository auditLogRepository;
+    private final AuditLogService auditLogService;
 
-    public AuditLogController(AuditLogRepository auditLogRepository) {
-        this.auditLogRepository = auditLogRepository;
+    // Injectăm Service-ul!
+    public AuditLogController(AuditLogService auditLogService) {
+        this.auditLogService = auditLogService;
     }
 
-    // CREATE: Înregistrează un log nou
     @PostMapping
     public ResponseEntity<AuditLog> createAuditLog(@RequestBody AuditLog auditLog) {
-        AuditLog savedLog = auditLogRepository.save(auditLog);
+        AuditLog savedLog = auditLogService.createAuditLog(auditLog);
         return new ResponseEntity<>(savedLog, HttpStatus.CREATED);
     }
 
-    // READ ALL: Aduce tot istoricul
     @GetMapping
-    public List<AuditLog> getAllAuditLogs() {
-        return auditLogRepository.findAll();
+    public ResponseEntity<List<AuditLog>> getAllAuditLogs() {
+        return ResponseEntity.ok(auditLogService.getAllAuditLogs());
     }
 
-    // READ BY USER: Istoric pentru un anumit utilizator
     @GetMapping("/user/{userId}")
-    public List<AuditLog> getAuditLogsByUser(@PathVariable UUID userId) {
-        return auditLogRepository.findByUserId(userId);
+    public ResponseEntity<List<AuditLog>> getAuditLogsByUser(@PathVariable UUID userId) {
+        return ResponseEntity.ok(auditLogService.getAuditLogsByUser(userId));
     }
 
-    // READ BY ENTITY: Istoric pentru o entitate (ex: Medicament, TransferRequest)
     @GetMapping("/entity/{entityName}/{entityId}")
-    public List<AuditLog> getAuditLogsForEntity(@PathVariable String entityName, @PathVariable UUID entityId) {
-        return auditLogRepository.findByEntityNameAndEntityId(entityName, entityId);
+    public ResponseEntity<List<AuditLog>> getAuditLogsForEntity(
+            @PathVariable String entityName,
+            @PathVariable UUID entityId) {
+        return ResponseEntity.ok(auditLogService.getAuditLogsForEntity(entityName, entityId));
     }
 }

@@ -1,7 +1,7 @@
 package com.example.backend_medstock.controller;
 
 import com.example.backend_medstock.model.TransferRecommendationView;
-import com.example.backend_medstock.repository.TransferRecommendationRepository;
+import com.example.backend_medstock.service.TransferRecommendationService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -9,26 +9,25 @@ import java.util.List;
 import java.util.UUID;
 
 @RestController
-@RequestMapping("/api/medication/recommendation")
+@RequestMapping("/api/recommendations") // Verifică dacă ruta ta era /api/recommendations sau alta și adaptează dacă e nevoie
 @CrossOrigin
 public class TransferRecommendationController {
 
-    private final TransferRecommendationRepository recommendationRepository;
+    private final TransferRecommendationService transferRecommendationService;
 
-    public TransferRecommendationController(TransferRecommendationRepository recommendationRepository) {
-        this.recommendationRepository = recommendationRepository;
+    // Injectăm exclusiv Service-ul
+    public TransferRecommendationController(TransferRecommendationService transferRecommendationService) {
+        this.transferRecommendationService = transferRecommendationService;
     }
 
-    // READ ALL: Returneaza toate recomandarile din View
     @GetMapping
-    public List<TransferRecommendationView> getAllRecommendations() {
-        return recommendationRepository.findAll();
+    public ResponseEntity<List<TransferRecommendationView>> getAllRecommendations() {
+        return ResponseEntity.ok(transferRecommendationService.getAllRecommendations());
     }
 
-    // READ BY ID: Returneaza o recomandare specifica dupa ID
     @GetMapping("/{id}")
     public ResponseEntity<TransferRecommendationView> getRecommendationById(@PathVariable UUID id) {
-        return recommendationRepository.findById(id)
+        return transferRecommendationService.getRecommendationById(id)
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
     }
