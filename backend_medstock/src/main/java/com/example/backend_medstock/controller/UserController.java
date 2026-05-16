@@ -1,7 +1,8 @@
 package com.example.backend_medstock.controller;
 
-import com.example.backend_medstock.model.User;
-import com.example.backend_medstock.repository.UserRepository;
+import com.example.backend_medstock.dto.UserCreateDTO;
+import com.example.backend_medstock.dto.UserResponseDTO;
+import com.example.backend_medstock.service.UserService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -14,62 +15,40 @@ import java.util.UUID;
 @CrossOrigin
 public class UserController {
 
-    private final UserRepository userRepository;
+    private final UserService userService;
 
-    public UserController(UserRepository userRepository) {
-        this.userRepository = userRepository;
+    public UserController(UserService userService) {
+        this.userService = userService;
     }
 
-    // CREATE: Adaugă un utilizator
     @PostMapping
-    public ResponseEntity<User> createUser(@RequestBody User user) {
-        User savedUser = userRepository.save(user);
+    public ResponseEntity<UserResponseDTO> createUser(@RequestBody UserCreateDTO userDto) {
+        UserResponseDTO savedUser = userService.createUser(userDto);
         return new ResponseEntity<>(savedUser, HttpStatus.CREATED);
     }
 
-    // READ: Lista cu toți utilizatorii
     @GetMapping
-    public List<User> getAllUsers() {
-        return userRepository.findAll();
+    public ResponseEntity<List<UserResponseDTO>> getAllUsers() {
+        return ResponseEntity.ok(userService.getAllUsers());
     }
 
-    // READ: Detalii despre un singur utilizator
     @GetMapping("/{id}")
-    public ResponseEntity<User> getUserById(@PathVariable UUID id) {
-        return userRepository.findById(id)
+    public ResponseEntity<UserResponseDTO> getUserById(@PathVariable UUID id) {
+        return userService.getUserById(id)
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
     }
 
-    // UPDATE: Modifică datele unui utilizator
     @PutMapping("/{id}")
-    public ResponseEntity<User> updateUser(@PathVariable UUID id, @RequestBody User newData) {
-        return userRepository.findById(id)
-                .map(existing -> {
-                    // Mapăm noile atribute din structura tabelei app_users
-                    existing.setFullName(newData.getFullName());
-                    existing.setRole(newData.getRole());
-                    existing.setEmail(newData.getEmail());
-                    existing.setUsername(newData.getUsername());
-                    existing.setHospitalId(newData.getHospitalId());
-                    existing.setIsActive(newData.getIsActive());
-
-                    // Actualizăm parola doar dacă e trimisă
-                    if (newData.getPassword() != null && !newData.getPassword().isEmpty()) {
-                        existing.setPassword(newData.getPassword());
-                    }
-
-                    User updated = userRepository.save(existing);
-                    return ResponseEntity.ok(updated);
-                })
+    public ResponseEntity<UserResponseDTO> updateUser(@PathVariable UUID id, @RequestBody UserCreateDTO newData) {
+        return userService.updateUser(id, newData)
+                .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
     }
 
-    // DELETE: Șterge un utilizator
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteUser(@PathVariable UUID id) {
-        if (userRepository.existsById(id)) {
-            userRepository.deleteById(id);
+        if (userService.deleteUser(id)) {
             return ResponseEntity.noContent().build();
         }
         return ResponseEntity.notFound().build();
