@@ -5,25 +5,24 @@ export type TransferStatus = 'PENDING' | 'APPROVED' | 'REJECTED' | 'COMPLETED';
 export interface FacilityStock {
     facilityId: number;
     facilityName: string;
-    city: string;
-    medicationId: number;
+    medicationId: string;
     medicationName: string;
     category: string;
-    batchNumber: string;
-    stock: number;
-    expiryDate: string;
-    daysUntilExpiry: number;
-    price: number;
+    criticality?: string;
+    isActive?: boolean;
 }
 
 export interface TransferRequest {
     id: number;
-    medicationId: number;
+    backendId: string;
+    medicationId: string;
     medicationName: string;
-    batchNumber: string;
+    batchNumber?: string;
     quantity: number;
     fromFacility: string;
     toFacility: string;
+    senderHospitalId?: string;
+    receiverHospitalId?: string;
     reason: string;
     status: TransferStatus;
     requestedBy: string;
@@ -33,28 +32,30 @@ export interface TransferRequest {
 
 export interface CreateTransferRequest {
     source: FacilityStock;
+    batchNumber?: string;
+    batchId?: string;
+    senderHospitalId?: string;
+    receiverHospitalId?: string;
+    sourceHospitalId?: string;
+    destinationHospitalId?: string;
     toFacility: string;
     quantity: number;
     reason: string;
+    transactionType?: string;
 }
 
 export function mapMedicationToFacilityStock(
     medication: Medicament,
     facilityId = 1,
-    facilityName = 'Central Hospital Pharmacy',
-    city = 'Cluj-Napoca'
+    facilityName = 'Central Hospital Pharmacy'
 ): FacilityStock {
     return {
         facilityId,
         facilityName,
-        city,
         medicationId: medication.id,
         medicationName: medication.name,
         category: medication.category,
-        batchNumber: medication.batchNumber,
-        stock: medication.stock,
-        expiryDate: medication.expiryDate,
-        daysUntilExpiry: medication.daysUntilExpiry,
-        price: medication.price
+        criticality: medication.criticality,
+        isActive: medication.isActive
     };
 }

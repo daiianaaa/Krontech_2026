@@ -19,4 +19,16 @@ public interface MedicationRepository extends JpaRepository<Medication, UUID> {
     List<Medication> filterMedications(@Param("name") String name,
                                        @Param("category") String category,
                                        @Param("isActive") Boolean isActive);
+
+    @Query(value = "SELECT DISTINCT m.* FROM medications m " +
+            "JOIN medication_batches b ON m.id = b.medication_id WHERE " +
+            "b.hospital_id = :hospitalId AND " +
+            "(:name IS NULL OR LOWER(m.name) LIKE LOWER(CONCAT('%', CAST(:name AS text), '%'))) AND " +
+            "(:category IS NULL OR m.category = :category) AND " +
+            "(:isActive IS NULL OR m.is_active = :isActive)",
+            nativeQuery = true)
+    List<Medication> filterByHospital(@Param("hospitalId") UUID hospitalId,
+                                      @Param("name") String name,
+                                      @Param("category") String category,
+                                      @Param("isActive") Boolean isActive);
 }

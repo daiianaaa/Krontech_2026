@@ -75,6 +75,28 @@ Krontech_2026/
 
 ---
 
+## ⚡ Recent System Optimization & AI Integration Updates
+
+We recently engineered several critical stability, data-integrity, and backend-integration updates to streamline the AI redistribution pipeline:
+
+### 1. Stable, Deterministic AI Recommendation IDs (UUIDv5)
+* **Problem**: The periodic AI analysis (every 15s) previously wiped and re-inserted recommendations using new random UUIDs. If a user was viewing a recommendation card and clicked "Send AI Transfer" after 15s had passed, the request returned a `400 Bad Request` because the original ID was deleted and replaced by a new random UUID.
+* **Solution**: Migrated from random UUIDs to **deterministic UUIDv5 generation** derived from route properties: `(source_hospital_id, destination_hospital_id, medication_id, batch_id)`. Now, even across multiple AI-engine runs, the recommendation IDs remain 100% stable and persistent, ensuring users can interact with them at any time without expiry errors.
+
+### 2. Selective Database Cleanup & Cascade Prevention
+* **Problem**: The AI Engine's refresh script originally performed `TRUNCATE CASCADE` on dynamic tables, which recursively wiped active `transfer_requests` and receiver `inbox_messages` every 15s.
+* **Solution**: Replaced the invasive truncation with a smart, selective `DELETE` query that targets only pending, unreferenced recommendations. All active transfer histories, inbox notifications, and stock transactions remain fully persisted in Supabase.
+
+### 3. Dynamic Controlled Medication Rules & Triggers
+* **Problem**: Spring Boot inserted transfer requests with default `'normal'` storage types. If the transfer involved controlled medications (e.g. Morphine), PostgreSQL rejected the request due to constraint checks on `'controlled'` storage.
+* **Solution**: Integrated dynamic Java metadata lookup to extract the `required_storage_type` from the medication schema at request initialization. This feeds the SQL parameters mapped as `?::storage_type` correctly, triggering the corresponding PL/pgSQL inbox notification hooks successfully.
+
+### 4. Robust Subprocess Python Executable Scoping
+* **Problem**: Spawning the Python AI Engine from Spring Boot threw system-level `ModuleNotFoundError` warnings.
+* **Solution**: Bound the backend configuration specifically to the virtualenv execution directory (`/backend_medstock/venv/bin/python3`), scoping all system executions cleanly.
+
+---
+
 ## 🚀 Getting Started
 
 ```bash

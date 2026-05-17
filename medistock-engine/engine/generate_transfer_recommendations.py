@@ -20,6 +20,15 @@ Nota despre confidence_score:
 
 from __future__ import annotations
 
+import sys
+from pathlib import Path
+import uuid
+
+ROOT_DIR = Path(__file__).resolve().parent.parent
+
+if str(ROOT_DIR) not in sys.path:
+    sys.path.insert(0, str(ROOT_DIR))
+
 from dataclasses import dataclass
 from datetime import date, timedelta
 from typing import Any
@@ -27,6 +36,14 @@ from typing import Any
 import psycopg2
 import psycopg2.extras
 from config.db_config import get_connection
+
+import sys
+
+try:
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+except Exception:
+    pass
 
 # =========================
 # CONFIG
@@ -128,7 +145,15 @@ def get_latest_successful_ai_run_id(cur) -> str:
 
 
 def clear_previous_recommendations(cur):
-    cur.execute("TRUNCATE TABLE transfer_recommendations RESTART IDENTITY CASCADE;")
+    # Nu stergem recomandarile care sunt deja folosite in cereri de transfer (transfer_requests)
+    cur.execute("""
+        DELETE FROM transfer_recommendations 
+        WHERE id NOT IN (
+            SELECT DISTINCT source_recommendation_id 
+            FROM transfer_requests 
+            WHERE source_recommendation_id IS NOT NULL
+        );
+    """)
 
 
 def load_expiry_candidates(cur, ai_run_id: str) -> list[ExpiryCandidate]:
@@ -559,12 +584,15 @@ def generate_recommendations(cur):
                 #f"logistica, economia neta si capacitatea destinatiei de consum inainte de expirare."
             )
 
+            rec_id = str(uuid.uuid5(uuid.NAMESPACE_OID, f"{expiry.hospital_id}_{shortage.hospital_id}_{expiry.medication_id}_{expiry.batch_id}"))
+
             priority_score = compute_priority_score(expiry, shortage, route, net_savings)
 
             candidate_recommendations.append(
                 {
                     "priority_score": priority_score,
                     "row": (
+                        rec_id,
                         ai_run_id,
                         expiry.hospital_id,
                         shortage.hospital_id,
@@ -594,6 +622,7 @@ def generate_recommendations(cur):
             cur,
             """
             INSERT INTO transfer_recommendations (
+                id,
                 ai_run_id,
                 source_hospital_id,
                 destination_hospital_id,
@@ -616,7 +645,7 @@ def generate_recommendations(cur):
             page_size=1000,
         )
 
-    print(f"Recomandări generate: {len(recommendation_rows)}")
+    print(f"Recomandari generate: {len(recommendation_rows)}")
     print("\nSkip stats:")
     for key, value in skipped_stats.items():
         print(f"  {key}: {value}")
@@ -641,13 +670,13 @@ def print_summary(cur):
 
     print("\nRezumat transfer_recommendations:")
     if not rows:
-        print("  Nu s-au generat recomandări.")
+        print("  Nu s-au generat recomandari.")
         return
 
     for row in rows:
         print(
             f"  {row['risk_level']} / {row['status']}: "
-            f"{row['count']} recomandări, economii nete {row['total_net_savings']} RON, "
+            f"{row['count']} recomandari, economii nete {row['total_net_savings']} RON, "
             f"confidence min/avg/max = {row['min_confidence']}/{row['avg_confidence']}/{row['max_confidence']}"
         )
 
@@ -673,7 +702,7 @@ def print_summary(cur):
         """,
     )
 
-    print("\nTop 10 recomandări:")
+    print("\nTop 10 recomandari:")
     for row in top_rows:
         print(
             f"  {row['medication']} | {row['source_hospital']} -> {row['destination_hospital']} | "

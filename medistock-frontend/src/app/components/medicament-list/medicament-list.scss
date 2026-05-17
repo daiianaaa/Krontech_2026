@@ -10,42 +10,113 @@ h2 {
     margin-bottom: 16px;
 }
 
+.table-tools {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 16px;
+
+    input, select {
+        padding: 8px 12px;
+        border: 1px solid #ddd;
+        border-radius: 8px;
+        font-size: 0.9rem;
+    }
+
+    input {
+        flex: 1;
+    }
+}
+
 table {
     width: 100%;
-    min-width: 1100px;
+    min-width: 1200px;
     border-collapse: collapse;
 }
 
 th,
 td {
-    padding: 12px;
+    padding: 10px 12px;
     border-bottom: 1px solid #e5e7eb;
     text-align: left;
+    font-size: 0.875rem;
 }
 
 th {
     background: #f9fafb;
     font-weight: 600;
+    white-space: nowrap;
 }
 
-.expired {
-    color: red;
+/* Criticality pills */
+.status-critical {
+    color: #fff;
+    background: #dc2626;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 0.75rem;
     font-weight: bold;
 }
 
-.expiring {
-    color: orange;
+.status-high {
+    color: #fff;
+    background: #ea580c;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 0.75rem;
     font-weight: bold;
 }
 
-.low {
-    color: #ca8a04;
+.status-medium {
+    color: #fff;
+    background: #d97706;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 0.75rem;
     font-weight: bold;
 }
 
-.ok {
-    color: green;
+.status-low {
+    color: #fff;
+    background: #16a34a;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 0.75rem;
     font-weight: bold;
+}
+
+/* Active / Inactive pills */
+.active-pill {
+    color: #16a34a;
+    font-weight: bold;
+}
+
+.inactive-pill {
+    color: #6b7280;
+    font-weight: bold;
+}
+
+.actions-cell {
+    display: flex;
+    gap: 6px;
+}
+
+.edit-btn,
+.delete-btn {
+    padding: 5px 10px;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.8rem;
+}
+
+.edit-btn {
+    background: #1d4ed8;
+    color: white;
+}
+
+.delete-btn {
+    background: #dc2626;
+    color: white;
 }
 
 .pagination {

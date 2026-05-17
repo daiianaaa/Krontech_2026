@@ -103,7 +103,7 @@
 .complete {
     border: none;
     border-radius: 12px;
-    padding: 11px 14px;
+    padding: 11px 15px;
     background: #2563eb;
     color: white;
     cursor: pointer;
@@ -169,6 +169,24 @@
 
 .candidate-meta .critical {
     color: #dc2626;
+}
+
+.btn-details {
+    margin-top: 8px;
+    background-color: transparent;
+    border: 1px solid #3b82f6;
+    color: #3b82f6;
+    border-radius: 6px;
+    padding: 4px 10px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease-in-out;
+
+    &:hover {
+        background-color: #3b82f6;
+        color: white;
+    }
 }
 
 .transfer-history {
@@ -239,6 +257,10 @@
 
 .complete {
     background: #16a34a;
+
+    &:hover {
+        background: #15803d;
+    }
 }
 
 .empty-state,
@@ -317,4 +339,40 @@
     flex-direction: column;
     align-items: flex-end;
     gap: 10px;
+}
+
+.inbox-tabs {
+    display: flex;
+    background: #f1f5f9;
+    padding: 4px;
+    border-radius: 12px;
+    gap: 4px;
+}
+
+.inbox-tabs button {
+    background: transparent;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 700;
+    color: #64748b;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.inbox-tabs button.active {
+    background: white;
+    color: #2563eb;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+}
+
+.inbox-tabs button span {
+    font-size: 11px;
+    opacity: 0.8;
+}
+
+.inbox-section-title {
+    display: none;
+    /* Removed as we now use tabs */
 }

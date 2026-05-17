@@ -82,6 +82,39 @@ public class TransferRecommendationView {
     @Column(name = "confidence_score")
     private Double confidenceScore;
 
+    @Column(name = "status")
+    private String status;
+
+    @Column(name = "risk_level")
+    private String riskLevel;
+
+    @Column(name = "source_hospital_id")
+    private UUID sourceHospitalId;
+
+    @Column(name = "destination_hospital_id")
+    private UUID destinationHospitalId;
+
+    @Column(name = "medication_id")
+    private UUID medicationId;
+
+    @Column(name = "batch_id")
+    private UUID batchId;
+
+    @Column(name = "expected_savings")
+    private Double expectedSavings;
+
+    @Column(name = "avoided_disposal_cost")
+    private Double avoidedDisposalCost;
+
+    @Column(name = "transport_cost")
+    private Double transportCost;
+
+    @Column(name = "net_savings")
+    private Double netSavings;
+
+    @Column(name = "distance_km")
+    private Double distanceKm;
+
     // --- Audit ---
     @Column(name = "created_at")
     private LocalDateTime createdAt;

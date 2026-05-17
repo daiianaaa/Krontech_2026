@@ -24,4 +24,5 @@ public class MedicationResponseDTO {
     private Integer defaultMinBufferDays;
     private Integer defaultTargetBufferDays;
     private Boolean isActive;
+    private Integer totalStock;
 }

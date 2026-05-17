@@ -1,22 +1,23 @@
 import { HttpInterceptorFn } from '@angular/common/http';
-import { tap } from 'rxjs';
+import { inject } from '@angular/core';
+import { catchError, throwError } from 'rxjs';
+import { AuthService } from '../services/auth';
 
 export const credentialsInterceptor: HttpInterceptorFn = (request, next) => {
+  const authService = inject(AuthService);
 
   const modifiedRequest = request.clone({
     withCredentials: true
   });
 
   return next(modifiedRequest).pipe(
-    tap({
-      next: (event) => {
-        console.log('Response OK:', event);
-      },
-      error: (error) => {
-        if (error.status === 401) {
-          console.error('Unauthorized → user not logged in');
-        }
+    catchError((error) => {
+      // 401: not authenticated — cookie missing or invalid
+      // 403: JWT cookie is expired/malformed → filter crashed → treat as session expired
+      if (error.status === 401 || error.status === 403) {
+        authService.logout(); // clears sessionStorage so login page is shown
       }
+      return throwError(() => error);
     })
   );
 };

@@ -58,21 +58,29 @@ public class TransferRequestController {
     }
 
     @PutMapping("/{id}/accept")
-    public ResponseEntity<TransferRequestResponseDTO> acceptTransferRequest(@PathVariable UUID id, @RequestParam UUID acceptedByUserId) {
-        return transferRequestService.acceptTransferRequest(id, acceptedByUserId)
-                .map(ResponseEntity::ok)
-                .orElse(ResponseEntity.notFound().build());
+    public ResponseEntity<?> acceptTransferRequest(@PathVariable UUID id, @RequestParam UUID acceptedByUserId) {
+        try {
+            return transferRequestService.acceptTransferRequest(id, acceptedByUserId)
+                    .map(ResponseEntity::ok)
+                    .orElse(ResponseEntity.notFound().build());
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
     }
 
     @PutMapping("/{id}/reject")
-    public ResponseEntity<TransferRequestResponseDTO> rejectTransferRequest(
+    public ResponseEntity<?> rejectTransferRequest(
             @PathVariable UUID id,
             @RequestParam UUID rejectedByUserId,
             @RequestBody(required = false) Map<String, String> payload) {
 
-        return transferRequestService.rejectTransferRequest(id, rejectedByUserId, payload)
-                .map(ResponseEntity::ok)
-                .orElse(ResponseEntity.notFound().build());
+        try {
+            return transferRequestService.rejectTransferRequest(id, rejectedByUserId, payload)
+                    .map(ResponseEntity::ok)
+                    .orElse(ResponseEntity.notFound().build());
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
     }
 
     @DeleteMapping("/{id}")

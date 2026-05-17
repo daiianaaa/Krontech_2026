@@ -13,31 +13,25 @@ import { Medicament } from '../../models/medicament';
 export class MedicamentListComponent {
   @Input() medicaments: Medicament[] = [];
 
-  @Output() edit = new EventEmitter<Medicament>();
-  @Output() delete = new EventEmitter<number>();
+
+  @Output() delete = new EventEmitter<string>();
+  @Output() filterChange = new EventEmitter<{name?: string, category?: string, isActive?: boolean}>();
 
   searchTerm = '';
+  selectedStatus= '';
   selectedCategory = 'ALL';
+  statusFilter: 'ALL' | 'ACTIVE' | 'INACTIVE' = 'ALL';
 
   page = 0;
   size = 20;
 
   get categories(): string[] {
-    return [...new Set(this.medicaments.map((m) => m.category))];
+    return [...new Set(this.medicaments.map((m) => m.category))].filter(Boolean);
   }
 
   get filteredMedications(): Medicament[] {
-    return this.medicaments.filter((m) => {
-      const matchesSearch = m.name
-        .toLowerCase()
-        .includes(this.searchTerm.toLowerCase());
-
-      const matchesCategory =
-        this.selectedCategory === 'ALL' ||
-        m.category === this.selectedCategory;
-
-      return matchesSearch && matchesCategory;
-    });
+    // Now the backend does the heavy lifting, so we just return the input list.
+    return this.medicaments;
   }
 
   get totalPages(): number {
@@ -50,12 +44,26 @@ export class MedicamentListComponent {
     return this.filteredMedications.slice(start, end);
   }
 
-  onSearchChange(): void {
+  emitFilter(): void {
+    const isActive = this.statusFilter === 'ALL' ? undefined : (this.statusFilter === 'ACTIVE');
+    this.filterChange.emit({
+      name: this.searchTerm,
+      category: this.selectedCategory,
+      isActive: isActive
+    });
     this.page = 0;
   }
 
+  onSearchChange(): void {
+    this.emitFilter();
+  }
+
   onCategoryChange(): void {
-    this.page = 0;
+    this.emitFilter();
+  }
+
+  onStatusChange(): void {
+    this.emitFilter();
   }
 
   nextPage(): void {
@@ -70,18 +78,19 @@ export class MedicamentListComponent {
     }
   }
 
-  onEdit(m: Medicament): void {
-    this.edit.emit(m);
-  }
 
-  onDelete(id: number): void {
+
+  onDelete(id: string): void {
     this.delete.emit(id);
   }
 
-  getStatus(m: Medicament): string {
-    if (m.daysUntilExpiry < 0) return 'Expired';
-    if (m.daysUntilExpiry <= 30) return 'Expiring Soon';
-    if (m.stock <= 10) return 'Low Stock';
-    return 'OK';
+  getCriticalityClass(criticality: string | undefined): string {
+    switch (criticality?.toUpperCase()) {
+      case 'CRITICAL': return 'status-critical';
+      case 'HIGH': return 'status-high';
+      case 'MEDIUM': return 'status-medium';
+      case 'LOW': return 'status-low';
+      default: return '';
+    }
   }
 }

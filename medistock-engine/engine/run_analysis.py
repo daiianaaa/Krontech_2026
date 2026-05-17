@@ -20,6 +20,14 @@ Nota despre confidence_score:
 
 from __future__ import annotations
 
+import sys
+from pathlib import Path
+
+ROOT_DIR = Path(__file__).resolve().parent.parent
+
+if str(ROOT_DIR) not in sys.path:
+    sys.path.insert(0, str(ROOT_DIR))
+
 import hashlib
 import random
 from dataclasses import dataclass
@@ -117,16 +125,12 @@ def finish_ai_run(
 
 def clear_previous_ai_outputs(cur):
     """Sterge rezultatele AI vechi, dar pastreaza datele operationale."""
-    cur.execute(
-        """
-        TRUNCATE TABLE
-            alerts,
-            transfer_recommendations,
-            ai_predictions,
-            ai_run_logs
-        RESTART IDENTITY CASCADE;
-        """
-    )
+    # Nu folosim TRUNCATE CASCADE deoarece acesta sterge si tabelele care au foreign keys active
+    # (cum ar fi transfer_requests si inbox_messages). Folosim DELETE in ordinea cheilor straine.
+    cur.execute("DELETE FROM alerts;")
+    cur.execute("DELETE FROM ai_predictions;")
+    cur.execute("DELETE FROM transfer_recommendations;")
+    cur.execute("DELETE FROM ai_run_logs;")
 
 
 def stable_seed(*parts: object) -> int:

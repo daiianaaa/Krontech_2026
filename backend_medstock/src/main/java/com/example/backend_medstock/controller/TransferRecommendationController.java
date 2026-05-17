@@ -9,13 +9,12 @@ import java.util.List;
 import java.util.UUID;
 
 @RestController
-@RequestMapping("/api/recommendations") // Verifică dacă ruta ta era /api/recommendations sau alta și adaptează dacă e nevoie
+@RequestMapping("/api/recommendations")
 @CrossOrigin
 public class TransferRecommendationController {
 
     private final TransferRecommendationService transferRecommendationService;
 
-    // Injectăm exclusiv Service-ul
     public TransferRecommendationController(TransferRecommendationService transferRecommendationService) {
         this.transferRecommendationService = transferRecommendationService;
     }
@@ -30,5 +29,15 @@ public class TransferRecommendationController {
         return transferRecommendationService.getRecommendationById(id)
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
+    }
+
+    @PutMapping("/{id}/accept")
+    public ResponseEntity<Void> acceptRecommendation(@PathVariable UUID id, @RequestParam UUID acceptedByUserId) {
+        boolean success = transferRecommendationService.acceptRecommendation(id, acceptedByUserId);
+        if (success) {
+            return ResponseEntity.ok().build();
+        } else {
+            return ResponseEntity.badRequest().build();
+        }
     }
 }

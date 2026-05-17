@@ -1,0 +1,272 @@
+<div class="modal-backdrop" (click)="onClose()">
+  <div class="modal-panel" (click)="$event.stopPropagation()">
+    <div class="modal-header">
+      <div>
+        <p class="modal-eyebrow">AI Insights</p>
+        <h2>{{ stock.medicationName }}</h2>
+        <p class="modal-subtitle">{{ stock.category }} &middot; {{ currentFacilityName }}</p>
+      </div>
+      <button type="button" class="close-btn" (click)="onClose()">✕</button>
+    </div>
+
+    @if (loading) {
+      <div class="loading-state">
+        <div class="spinner"></div>
+        <p>Loading AI data...</p>
+      </div>
+    } @else if (error) {
+      <div class="error-banner">
+        {{ error }}
+      </div>
+    } @else {
+      <div class="tab-bar">
+        <button [class.active]="activeTab === 'summary'" (click)="activeTab = 'summary'">
+          Risk Summary
+        </button>
+        <button [class.active]="activeTab === 'predictions'" (click)="activeTab = 'predictions'">
+          Predictions
+          @if (predictions.length) { <span class="tab-count">{{ predictions.length }}</span> }
+        </button>
+        <button [class.active]="activeTab === 'recommendations'" (click)="activeTab = 'recommendations'">
+          Recommendations
+          @if (recommendations.length) { <span class="tab-count">{{ recommendations.length }}</span> }
+        </button>
+      </div>
+
+      <!-- ─── Tab: Summary ─── -->
+      @if (activeTab === 'summary') {
+      <div class="tab-content">
+        @if (summaries.length === 0) {
+        <p class="empty-hint">No risk summaries available.</p>
+        }
+        @for (s of summaries; track s.predictionType) {
+        <div class="summary-card">
+          <div class="pred-header">
+            <span class="pred-type">{{ s.predictionType }}</span>
+            <span class="risk-badge"
+              [class.risk-critical]="s.riskLevel === 'CRITICAL'"
+              [class.risk-high]="s.riskLevel === 'HIGH'"
+              [class.risk-medium]="s.riskLevel === 'MEDIUM'"
+              [class.risk-low]="s.riskLevel === 'LOW'">
+              {{ s.riskLevel }} Risk
+            </span>
+          </div>
+          <div class="pred-metrics">
+            <div class="metric">
+              <span class="metric-label">Avg Daily Demand</span>
+              <strong>{{ s.avgDailyDemand }}</strong>
+            </div>
+            <div class="metric">
+              <span class="metric-label">Avg Coverage Days</span>
+              <strong>{{ s.avgCoverageDays }}</strong>
+            </div>
+            <div class="metric">
+              <span class="metric-label">Total Expired Qty</span>
+              <strong>{{ s.totalExpiredQty }}</strong>
+            </div>
+            <div class="metric">
+              <span class="metric-label">Confidence</span>
+              <strong>{{ formatNumber(s.maxConfidence * 100, 1) }}%</strong>
+            </div>
+          </div>
+        </div>
+        }
+      </div>
+      }
+
+      <!-- ─── Tab: Predictions ─── -->
+      @if (activeTab === 'predictions') {
+      <div class="tab-content">
+        @if (predictions.length === 0) {
+        <p class="empty-hint">No predictions available.</p>
+        }
+        @for (p of predictions; track p.id) {
+        <div class="prediction-card">
+          <div class="pred-header">
+            <span class="pred-type">{{ p.predictionType }}</span>
+            <span class="pred-date">Predicted on {{ p.createdAt | date: 'dd MMM yyyy' }}</span>
+          </div>
+          <p class="recommendation-text">{{ p.recommendationText }}</p>
+        </div>
+        }
+      </div>
+      }
+
+      <!-- ─── Tab: Recommendations ─── -->
+      @if (activeTab === 'recommendations') {
+      <div class="tab-content">
+      
+        @if (recommendations.length > 0) {
+        <div class="savings-banner">
+          <div class="savings-item">
+            <span>Transfer Recommendations</span>
+            <strong>{{ recommendations.length }}</strong>
+          </div>
+          <div class="savings-item">
+            <span>Medication</span>
+            <strong>{{ stock.medicationName }}</strong>
+          </div>
+          <div class="savings-item">
+            <span>Your facility</span>
+            <strong>{{ currentFacilityName }}</strong>
+          </div>
+        </div>
+        }
+
+        @for (rec of recommendations; track rec.recommendationId) {
+        <div class="rec-card" [style.border-left]="isSource(rec) || isDestination(rec) ? '3px solid #3b82f6' : '3px solid #e2e8f0'">
+
+          <div class="rec-header">
+            <div>
+              @if (isSource(rec)) {
+              <span class="risk-badge risk-high">You send</span>
+              } @else if (isDestination(rec)) {
+              <span class="risk-badge risk-low">You receive</span>
+              } @else {
+              <span class="risk-badge risk-ok">Network transfer</span>
+              }
+            </div>
+            <span class="pred-date">
+              {{ rec.createdAt | date: 'dd MMM yyyy' }}
+            </span>
+          </div>
+
+          <div class="rec-route">
+            <span [style.font-weight]="isSource(rec) ? '700' : '500'">
+              {{ rec.sourceHospitalName }}
+              <small style="font-weight: 400; color: #64748b;">({{ rec.sourceCity }}, {{ rec.sourceCounty }})</small>
+            </span>
+            <span class="arrow">→</span>
+            <span [style.font-weight]="isDestination(rec) ? '700' : '500'">
+              {{ rec.destinationHospitalName }}
+              <small style="font-weight: 400; color: #64748b;">({{ rec.destinationCity }}, {{ rec.destinationCounty }})</small>
+            </span>
+          </div>
+
+          <div class="pred-metrics">
+            <div class="metric">
+              <span class="metric-label">Source Current Stock</span>
+              <strong>{{ rec.sourceBatchCurrentQuantity }} units</strong>
+            </div>
+
+            <div class="metric">
+              <span class="metric-label">Recommended to Transfer</span>
+              <strong style="color: #3b82f6;">{{ rec.recommendedQuantity }} units</strong>
+            </div>
+
+            <div class="metric">
+              <span class="metric-label">Batch Number</span>
+              <strong>{{ rec.batchNumber }}</strong>
+            </div>
+
+            <div class="metric">
+              <span class="metric-label">Expiry Date</span>
+              <strong [style.color]="(getDaysUntilExpiry(rec.expiryDate) ?? 999) < 30 ? '#dc2626' : '#0f172a'">
+                {{ rec.expiryDate | date: 'dd MMM yyyy' }}
+              </strong>
+            </div>
+
+            <div class="metric">
+              <span class="metric-label">Days Until Expiry</span>
+              <strong [style.color]="(getDaysUntilExpiry(rec.expiryDate) ?? 999) < 30 ? '#dc2626' : '#0f172a'">
+                {{ getDaysUntilExpiry(rec.expiryDate) ?? '—' }} days
+              </strong>
+            </div>
+
+            <div class="metric">
+              <span class="metric-label">Transfer By</span>
+              <strong>{{ rec.recommendedTransferDate | date: 'dd MMM yyyy' }}</strong>
+            </div>
+
+            <div class="metric">
+              <span class="metric-label">AI Confidence</span>
+              <strong>{{ formatNumber(rec.confidenceScore * 100, 1) }}%</strong>
+            </div>
+
+            <div class="metric">
+              <span class="metric-label">Medication Code</span>
+              <strong>{{ rec.medicationCode }}</strong>
+            </div>
+          </div>
+
+          <div class="snapshot-section">
+            <p class="snapshot-title">AI Reason</p>
+            <p class="recommendation-text">{{ rec.reason }}</p>
+          </div>
+
+          <div style="margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid #eee; display: flex; gap: 0.5rem; justify-content: flex-end;">
+            <button
+              (click)="onInitiateAction(rec, 'ACCEPT_AI')"
+              style="padding: 0.5rem 1rem; font-size: 0.8rem; border-radius: 4px; border: none; background: #10b981; color: white; cursor: pointer; font-weight: 500;"
+            >
+              Accept AI Transfer
+            </button>
+          </div>
+
+        </div>
+        }
+
+        @if (recommendations.length === 0) {
+        <p class="empty-hint" style="margin-bottom: 1rem;">
+          No AI transfer recommendations exist in the database for <strong>{{ stock.medicationName }}</strong> involving your facility.
+        </p>
+
+        <div class="rec-card" style="border-left: 3px solid #10b981;">
+          <div class="rec-header">
+            <div>
+              <span class="risk-badge risk-ok">Facility Stock Details</span>
+            </div>
+            <span class="pred-date">Available for Manual Transfer</span>
+          </div>
+
+          <p class="recommendation-text" style="margin-top: 0.5rem;">
+            You can manually initiate a transfer request or shipment for <strong>{{ stock.medicationName }}</strong> using your facility's current inventory records.
+          </p>
+
+          <div class="pred-metrics">
+            <div class="metric">
+              <span class="metric-label">Medication</span>
+              <strong>{{ stock.medicationName }}</strong>
+            </div>
+            <div class="metric">
+              <span class="metric-label">Category</span>
+              <strong>{{ stock.category }}</strong>
+            </div>
+            @if (stock.criticality) {
+            <div class="metric">
+              <span class="metric-label">Criticality</span>
+              <strong>{{ stock.criticality }}</strong>
+            </div>
+            }
+            <div class="metric">
+              <span class="metric-label">Status</span>
+              <strong>{{ stock.isActive !== false ? 'Active' : 'Inactive' }}</strong>
+            </div>
+            <div class="metric">
+              <span class="metric-label">Your Facility</span>
+              <strong>{{ currentFacilityName }}</strong>
+            </div>
+          </div>
+
+          <div style="margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid #eee; display: flex; gap: 0.5rem; justify-content: flex-end;">
+            <button
+              (click)="onManualTransfer('SEND')"
+              style="padding: 0.5rem 1rem; font-size: 0.8rem; border-radius: 4px; border: none; background: #007bff; color: white; cursor: pointer; font-weight: 500;"
+            >
+              Send transfer
+            </button>
+            <button
+              (click)="onManualTransfer('REQUEST')"
+              style="padding: 0.5rem 1rem; font-size: 0.8rem; border-radius: 4px; border: none; background: #10b981; color: white; cursor: pointer; font-weight: 500;"
+            >
+              Request transfer
+            </button>
+          </div>
+        </div>
+        }
+
+      </div>
+      }
+    }
+  </div>
+</div>

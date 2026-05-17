@@ -34,54 +34,28 @@ export class Login {
 
     this.isLoading = true;
 
-    fetch('http://localhost:8080/api/auth/login', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      credentials: 'include',
-      body: JSON.stringify({
-        username: this.username.trim(),
-        password: this.password
-      })
-    })
-    .then(async (res) => {
-      const data = await res.json();
-
-      if (!res.ok) {
-        throw new Error(data.eroare || data.message || 'Username sau parolă incorectă.');
+    this.authService.login({
+      username: this.username.trim(),
+      password: this.password
+    }).subscribe({
+      next: () => {
+        this.ngZone.run(() => {
+          this.isLoading = false;
+          // Preia userul complet salvat in sessionStorage de către AuthService
+          const user = this.authService.getCurrentUser();
+          if (user) {
+            this.loginSuccess.emit(user);
+          }
+          this.cdr.detectChanges();
+        });
+      },
+      error: (err) => {
+        this.ngZone.run(() => {
+          this.isLoading = false;
+          this.errorMessage = err.error?.message || err.error?.eroare || err.message || 'Username sau parolă incorectă.';
+          this.cdr.detectChanges();
+        });
       }
-
-      return data;
-    })
-    .then((data) => {
-      this.ngZone.run(() => {
-        // Folosim rolul din backend, sau mapam din username
-        const role: UserRole = this.mapRole(data?.user?.role || this.username);
-
-        const user: AuthUser = {
-          username: this.username.trim(),
-          role: role
-        };
-
-        sessionStorage.setItem('medistock_user', JSON.stringify(user));
-        this.isLoading = false;
-        this.loginSuccess.emit(user);
-        this.cdr.detectChanges();
-      });
-    })
-    .catch((err) => {
-      this.ngZone.run(() => {
-        this.isLoading = false;
-        this.errorMessage = err.message || 'Username sau parolă incorectă.';
-        this.cdr.detectChanges();
-      });
     });
-  }
-
-  private mapRole(value: string): UserRole {
-    const v = value.toLowerCase();
-    if (v.includes('admin')) return 'ADMIN';
-    if (v.includes('pharma') || v.includes('farm')) return 'PHARMACIST';
-    if (v.includes('provider')) return 'PROVIDER';
-    return 'ADMIN';
   }
 }

@@ -491,4 +491,4 @@ def run_if_refresh_required():
 
 if __name__ == "__main__":
     print("Acest fisier este gandit sa fie rulat cu uvicorn:")
-    print("py -m uvicorn engine_service:app --host 127.0.0.1 --port 8001")
+    print("python3 -m uvicorn engine_service:app --host 127.0.0.1 --port 8001")
