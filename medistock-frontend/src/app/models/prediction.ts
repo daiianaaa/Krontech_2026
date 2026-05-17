@@ -37,19 +37,25 @@ export interface PredictionSummary {
 
 export interface TransferRecommendation {
   recommendationId: string;
+  status: string;
+  riskLevel: string;
 
+  sourceHospitalId: string;
   sourceHospitalName: string;
   sourceCity: string;
   sourceCounty: string;
 
+  destinationHospitalId: string;
   destinationHospitalName: string;
   destinationCity: string;
   destinationCounty: string;
 
+  medicationId: string;
   medicationName: string;
   medicationCategory: string;
   medicationCode: string;
 
+  batchId: string;
   batchNumber: string;
   sourceBatchCurrentQuantity: number;
   recommendedQuantity: number;
@@ -59,6 +65,12 @@ export interface TransferRecommendation {
 
   reason: string;
   confidenceScore: number;
+
+  expectedSavings: number;
+  avoidedDisposalCost: number;
+  transportCost: number;
+  netSavings: number;
+  distanceKm: number;
 
   createdAt: string;
   updatedAt: string;

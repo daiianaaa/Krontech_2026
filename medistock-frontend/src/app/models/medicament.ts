@@ -22,6 +22,7 @@ export interface Medicament {
     defaultTargetBufferDays?: number;
   
     isActive: boolean;
+    totalStock?: number;
   
     createdAt?: string;
     updatedAt?: string;

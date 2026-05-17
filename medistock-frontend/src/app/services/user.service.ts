@@ -29,7 +29,7 @@ export class UserService {
 
   getFacilityNames(): Observable<string[]> {
     return this.getAllUsers().pipe(
-      map(users => users.map(u => u.username))
+      map(users => users.map(u => u.fullName || u.username))
     );
   }
 }

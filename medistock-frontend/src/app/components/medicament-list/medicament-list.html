@@ -41,6 +41,7 @@
           <th>Form</th>
           <th>Concentration</th>
           <th>Unit</th>
+          <th>Total Stock</th>
           <th>Criticality</th>
           <th>Storage</th>
           <th>Controlled</th>
@@ -59,6 +60,7 @@
           <td>{{ m.form || '—' }}</td>
           <td>{{ m.concentration || '—' }}</td>
           <td>{{ m.unit || '—' }}</td>
+          <td><strong style="color: #0284c7;">{{ m.totalStock || 0 }}</strong></td>
           <td>{{ m.criticality || '—' }}</td>
           <td>{{ m.requiredStorageType || '—' }}</td>
           <td>{{ m.controlledSubstance ? 'Yes' : 'No' }}</td>
@@ -69,9 +71,6 @@
           </td>
   
           <td class="actions-cell">
-            <button type="button" class="edit-btn" (click)="onEdit(m)">
-              Edit
-            </button>
   
             @if (m.id) {
               <button type="button" class="delete-btn" (click)="onDelete(m.id)">

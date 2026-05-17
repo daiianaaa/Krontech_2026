@@ -13,8 +13,9 @@ import { Medicament } from '../../models/medicament';
 export class MedicamentListComponent {
   @Input() medicaments: Medicament[] = [];
 
-  @Output() edit = new EventEmitter<Medicament>();
+
   @Output() delete = new EventEmitter<string>();
+  @Output() filterChange = new EventEmitter<{name?: string, category?: string, isActive?: boolean}>();
 
   searchTerm = '';
   selectedStatus= '';
@@ -29,22 +30,8 @@ export class MedicamentListComponent {
   }
 
   get filteredMedications(): Medicament[] {
-    return this.medicaments.filter((m) => {
-      const matchesSearch =
-        (m.name ?? '').toLowerCase().includes(this.searchTerm.toLowerCase()) ||
-        m.code?.toLowerCase().includes(this.searchTerm.toLowerCase()) ||
-        m.genericName?.toLowerCase().includes(this.searchTerm.toLowerCase());
-
-      const matchesCategory =
-        this.selectedCategory === 'ALL' || m.category === this.selectedCategory;
-
-      const isActive = m.isActive !== false;
-      const matchesStatus = this.statusFilter === 'ALL' ||
-                            (this.statusFilter === 'ACTIVE' && isActive) ||
-                            (this.statusFilter === 'INACTIVE' && !isActive);
-
-      return matchesSearch && matchesCategory && matchesStatus;
-    });
+    // Now the backend does the heavy lifting, so we just return the input list.
+    return this.medicaments;
   }
 
   get totalPages(): number {
@@ -57,16 +44,26 @@ export class MedicamentListComponent {
     return this.filteredMedications.slice(start, end);
   }
 
-  onSearchChange(): void {
+  emitFilter(): void {
+    const isActive = this.statusFilter === 'ALL' ? undefined : (this.statusFilter === 'ACTIVE');
+    this.filterChange.emit({
+      name: this.searchTerm,
+      category: this.selectedCategory,
+      isActive: isActive
+    });
     this.page = 0;
+  }
+
+  onSearchChange(): void {
+    this.emitFilter();
   }
 
   onCategoryChange(): void {
-    this.page = 0;
+    this.emitFilter();
   }
 
   onStatusChange(): void {
-    this.page = 0;
+    this.emitFilter();
   }
 
   nextPage(): void {
@@ -81,9 +78,7 @@ export class MedicamentListComponent {
     }
   }
 
-  onEdit(m: Medicament): void {
-    this.edit.emit(m);
-  }
+
 
   onDelete(id: string): void {
     this.delete.emit(id);

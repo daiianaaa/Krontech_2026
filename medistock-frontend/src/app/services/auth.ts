@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Observable, tap } from 'rxjs';
+import { Observable, tap, switchMap } from 'rxjs';
 
 import { AuthUser, LoginRequest, LoginResponse, UserRole } from '../models/auth';
 
@@ -9,8 +9,6 @@ import { AuthUser, LoginRequest, LoginResponse, UserRole } from '../models/auth'
 })
 export class AuthService {
   private readonly API_URL = '/api/auth';
-  private readonly USER_KEY = 'medistock_user';
-  private readonly API_URL = 'http://localhost:8080/api/auth';
   private readonly USER_KEY = 'medistock_user';
 
   constructor(private http: HttpClient) {}
@@ -21,13 +19,28 @@ export class AuthService {
         withCredentials: true
       })
       .pipe(
-        tap(() => {
-          const user: AuthUser = {
-            username: request.username,
-            role: this.mapRoleFromUsername(request.username)
-          };
-
-          sessionStorage.setItem(this.USER_KEY, JSON.stringify(user));
+        switchMap(() => {
+          // Obținem profilul userului curent direct din JWT (fără a căuta prin toți userii)
+          return this.http
+            .get<any>(`${this.API_URL}/me`, { withCredentials: true })
+            .pipe(
+              tap((backendUser) => {
+                const user: AuthUser = {
+                  id: backendUser?.id,
+                  username: backendUser?.username || request.username,
+                  role: this.mapRole(backendUser?.role),
+                  institutionName: backendUser?.fullName || request.username,
+                  hospitalId: backendUser?.hospitalId
+                };
+                sessionStorage.setItem(this.USER_KEY, JSON.stringify(user));
+              }),
+              switchMap(() =>
+                new Observable<LoginResponse>((obs) => {
+                  obs.next({ message: 'Login successful' });
+                  obs.complete();
+                })
+              )
+            );
         })
       );
   }
@@ -38,11 +51,7 @@ export class AuthService {
 
   getCurrentUser(): AuthUser | null {
     const storedUser = sessionStorage.getItem(this.USER_KEY);
-
-    if (!storedUser) {
-      return null;
-    }
-
+    if (!storedUser) return null;
     try {
       return JSON.parse(storedUser);
     } catch {
@@ -55,21 +64,13 @@ export class AuthService {
     return this.getCurrentUser() !== null;
   }
 
-  private mapRoleFromUsername(username: string): UserRole {
-    const normalized = username.toLowerCase();
-
-    if (normalized.includes('admin')) {
-      return 'ADMIN';
-    }
-
-    if (normalized.includes('pharma') || normalized.includes('farm')) {
-      return 'PHARMACIST';
-    }
-
-    if (normalized.includes('provider')) {
-      return 'PROVIDER';
-    }
-
+  private mapRole(role?: string): UserRole {
+    if (!role) return 'ADMIN';
+    const r = role.toUpperCase();
+    if (r === 'ADMIN') return 'ADMIN';
+    if (r === 'PHARMACIST') return 'PHARMACIST';
+    if (r === 'PROVIDER') return 'PROVIDER';
+    if (r === 'MANAGER') return 'MANAGER';
     return 'ADMIN';
   }
 }

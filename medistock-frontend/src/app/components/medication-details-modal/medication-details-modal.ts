@@ -6,6 +6,7 @@ import { forkJoin } from 'rxjs';
 import { AiPrediction, PredictionSummary, TransferRecommendation } from '../../models/prediction';
 import { PredictionService } from '../../services/prediction.service';
 import { FacilityStock } from '../../models/transfer';
+import { AuthService } from '../../services/auth';
 
 @Component({
   selector: 'app-medication-details-modal',
@@ -20,7 +21,7 @@ export class MedicationDetailsModalComponent implements OnInit {
   @Output() close = new EventEmitter<void>();
   @Output() initiateAction = new EventEmitter<{
     recommendation: TransferRecommendation;
-    action: 'SEND' | 'REQUEST';
+    action: 'SEND' | 'REQUEST' | 'ACCEPT_AI';
   }>();
 
   predictions: AiPrediction[] = [];
@@ -39,6 +40,7 @@ export class MedicationDetailsModalComponent implements OnInit {
 
   constructor(
     private predictionService: PredictionService,
+    private authService: AuthService,
     private cdr: ChangeDetectorRef
   ) {}
 
@@ -68,11 +70,18 @@ export class MedicationDetailsModalComponent implements OnInit {
         // Step 1: Detect the user's real hospital name from the recommendations data
         this.resolvedHospitalName = this.detectHospitalName(allRecs);
 
-        // Step 2: Filter — show only recommendations where the user's hospital
-        // is source or destination
-        this.recommendations = allRecs.filter(
-          (rec: TransferRecommendation) => this.canSeeRecommendation(rec)
+        // Step 2: Filter by medication name
+        const sameMedRecs = allRecs.filter(
+          (rec: TransferRecommendation) => this.isSameMedication(rec)
         );
+
+        // Step 3: Among same-medication recs, strictly filter ones where user's hospital is involved
+        const involvedRecs = sameMedRecs.filter(
+          (rec: TransferRecommendation) => this.isSource(rec) || this.isDestination(rec)
+        );
+
+        // Show only involved recommendations, no fallback to network-wide ones
+        this.recommendations = involvedRecs;
 
         this.loading = false;
         this.cdr.detectChanges();
@@ -146,20 +155,24 @@ export class MedicationDetailsModalComponent implements OnInit {
   }
 
   isSource(rec: TransferRecommendation): boolean {
-    return rec.sourceHospitalName === this.currentFacilityName;
+    const user = this.authService.getCurrentUser();
+    return !!user?.hospitalId && String(rec.sourceHospitalId) === String(user.hospitalId);
   }
 
   isDestination(rec: TransferRecommendation): boolean {
-    return rec.destinationHospitalName === this.currentFacilityName;
+    const user = this.authService.getCurrentUser();
+    return !!user?.hospitalId && String(rec.destinationHospitalId) === String(user.hospitalId);
+  }
+
+  isSameMedication(rec: TransferRecommendation): boolean {
+    return this.removeDiacritics((rec.medicationName || '').trim().toLowerCase()) ===
+      this.removeDiacritics((this.stock.medicationName || '').trim().toLowerCase());
   }
 
   canSeeRecommendation(rec: TransferRecommendation): boolean {
     // Only show recommendations where the user's hospital is involved
     const isInvolved = this.isSource(rec) || this.isDestination(rec);
-    const isSameMedication =
-      this.removeDiacritics((rec.medicationName || '').trim().toLowerCase()) ===
-      this.removeDiacritics((this.stock.medicationName || '').trim().toLowerCase());
-    return isInvolved && isSameMedication;
+    return isInvolved && this.isSameMedication(rec);
   }
 
   getRecommendationAction(rec: TransferRecommendation): 'SEND' | 'REQUEST' {
@@ -215,7 +228,7 @@ export class MedicationDetailsModalComponent implements OnInit {
 
   onInitiateAction(
     recommendation: TransferRecommendation,
-    action: 'SEND' | 'REQUEST'
+    action: 'SEND' | 'REQUEST' | 'ACCEPT_AI'
   ): void {
     this.initiateAction.emit({ recommendation, action });
   }
@@ -243,7 +256,7 @@ export class MedicationDetailsModalComponent implements OnInit {
       riskLevel: 'N/A',
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
-    };
+    } as TransferRecommendation;
 
     this.initiateAction.emit({ recommendation: manualRec, action });
   }

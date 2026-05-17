@@ -4,10 +4,15 @@ import com.example.backend_medstock.dto.MedicationCreateDTO;
 import com.example.backend_medstock.dto.MedicationResponseDTO;
 import com.example.backend_medstock.mapper.MedicationMapper;
 import com.example.backend_medstock.model.Medication;
+import com.example.backend_medstock.model.MedicationAvailabilityView;
+import com.example.backend_medstock.model.MedicationBatch;
+import com.example.backend_medstock.repository.MedicationAvailabilityRepository;
+import com.example.backend_medstock.repository.MedicationBatchRepository;
 import com.example.backend_medstock.repository.MedicationRepository;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -16,35 +21,79 @@ import java.util.stream.Collectors;
 public class MedicationService {
 
     private final MedicationRepository medicationRepository;
+    private final MedicationBatchRepository medicationBatchRepository;
+    private final MedicationAvailabilityRepository availabilityRepository;
     private final MedicationMapper medicationMapper;
 
-    // Injectăm și Mapper-ul
-    public MedicationService(MedicationRepository medicationRepository, MedicationMapper medicationMapper) {
+    public MedicationService(MedicationRepository medicationRepository, 
+                             MedicationBatchRepository medicationBatchRepository,
+                             MedicationAvailabilityRepository availabilityRepository,
+                             MedicationMapper medicationMapper) {
         this.medicationRepository = medicationRepository;
+        this.medicationBatchRepository = medicationBatchRepository;
+        this.availabilityRepository = availabilityRepository;
         this.medicationMapper = medicationMapper;
     }
 
-    // CREATE
-    public MedicationResponseDTO createMedication(MedicationCreateDTO dto) {
-        Medication medication = medicationMapper.toEntity(dto);
-        Medication savedMedication = medicationRepository.save(medication);
-        return medicationMapper.toResponseDTO(savedMedication);
-    }
+
 
     // READ ALL + FILTRĂRI
-    public List<MedicationResponseDTO> getMedications(String name, String category, Boolean isActive) {
+    public List<MedicationResponseDTO> getMedications(UUID hospitalId, String hospitalName, String name, String category, Boolean isActive) {
         List<Medication> medications;
 
-        // Optimizarea de performanță
-        if (name == null && category == null && isActive == null) {
+        if (hospitalId != null) {
+            // Prioritate: filtru după hospitalId (UUID) — cel mai fiabil
+            medications = medicationRepository.filterByHospital(hospitalId, name, category, isActive);
+        } else if (hospitalName != null && !hospitalName.isEmpty()) {
+            // Fallback: filtru după numele spitalului din view-ul de disponibilitate
+            List<MedicationAvailabilityView> availability = availabilityRepository.findByHospitalNameContainingIgnoreCase(hospitalName);
+            List<UUID> medIds = availability.stream().map(MedicationAvailabilityView::getMedicationId).distinct().collect(Collectors.toList());
+            if (medIds.isEmpty()) {
+                medications = java.util.Collections.emptyList();
+            } else {
+                medications = medicationRepository.findAllById(medIds);
+            }
+        } else if (name == null && category == null && isActive == null) {
+            // Niciun filtru specificat → toate medicamentele (ADMIN fără instituție)
             medications = medicationRepository.findAll();
         } else {
             medications = medicationRepository.filterMedications(name, category, isActive);
         }
 
-        // Transformăm lista de entități în listă de DTO-uri
+        List<Object[]> stockData;
+        if (hospitalId != null) {
+            stockData = availabilityRepository.sumQuantityByHospitalGroupedByMedication(hospitalId);
+        } else {
+            stockData = availabilityRepository.sumQuantityGroupedByMedication();
+        }
+
+        Map<UUID, Integer> stockMap = new java.util.HashMap<>();
+        if (stockData != null) {
+            for (Object[] row : stockData) {
+                UUID medId = null;
+                if (row[0] instanceof UUID) {
+                    medId = (UUID) row[0];
+                } else if (row[0] != null) {
+                    try {
+                        medId = UUID.fromString(row[0].toString());
+                    } catch (IllegalArgumentException e) {
+                        // ignore invalid UUIDs
+                    }
+                }
+                
+                if (medId != null) {
+                    int stock = row[1] != null ? ((Number) row[1]).intValue() : 0;
+                    stockMap.put(medId, stockMap.getOrDefault(medId, 0) + stock);
+                }
+            }
+        }
+
         return medications.stream()
-                .map(medicationMapper::toResponseDTO)
+                .map(med -> {
+                    MedicationResponseDTO dto = medicationMapper.toResponseDTO(med);
+                    dto.setTotalStock(stockMap.getOrDefault(med.getId(), 0));
+                    return dto;
+                })
                 .collect(Collectors.toList());
     }
 
@@ -54,16 +103,15 @@ public class MedicationService {
                 .map(medicationMapper::toResponseDTO);
     }
 
-    // UPDATE
-    public Optional<MedicationResponseDTO> updateMedication(UUID id, MedicationCreateDTO newData) {
-        if (!medicationRepository.existsById(id)) {
-            return Optional.empty();
+    // GET BATCHES
+    public List<MedicationBatch> getBatchesByMedicationId(UUID id, UUID hospitalId) {
+        if (hospitalId != null) {
+            return medicationBatchRepository.findByMedicationIdAndHospitalIdAndQuantityCurrentGreaterThanOrderByExpiryDateAsc(id, hospitalId, 0);
         }
-        Medication medicationToUpdate = medicationMapper.toEntity(newData);
-        medicationToUpdate.setId(id);
-        Medication updatedMedication = medicationRepository.save(medicationToUpdate);
-        return Optional.of(medicationMapper.toResponseDTO(updatedMedication));
+        return medicationBatchRepository.findByMedicationIdAndQuantityCurrentGreaterThanOrderByExpiryDateAsc(id, 0);
     }
+
+
 
     // DELETE
     public boolean deleteMedication(UUID id) {

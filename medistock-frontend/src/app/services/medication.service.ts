@@ -11,20 +11,21 @@ export class MedicationService {
 
   constructor(private http: HttpClient) {}
 
-  getMedications(): Observable<Medicament[]> {
-    return this.http.get<Medicament[]>(this.API_URL, { withCredentials: true });
+  getMedications(hospitalId?: string, hospitalName?: string, name?: string, category?: string, isActive?: boolean): Observable<Medicament[]> {
+    let params: any = {};
+    if (hospitalId) params.hospitalId = hospitalId;
+    if (hospitalName) params.hospitalName = hospitalName;
+    if (name) params.name = name;
+    if (category && category !== 'ALL') params.category = category;
+    if (isActive !== undefined) params.isActive = isActive;
+
+    return this.http.get<Medicament[]>(this.API_URL, { 
+      params,
+      withCredentials: true 
+    });
   }
 
-  addMedication(med: Partial<Medicament>): Observable<Medicament> {
-    // Strip id and timestamps — backend generates them
-    const { id, createdAt, updatedAt, ...payload } = med as any;
-    return this.http.post<Medicament>(this.API_URL, payload, { withCredentials: true });
-  }
 
-  updateMedication(id: string, med: Partial<Medicament>): Observable<Medicament> {
-    const { createdAt, updatedAt, ...payload } = med as any;
-    return this.http.put<Medicament>(`${this.API_URL}/${id}`, payload, { withCredentials: true });
-  }
 
   deleteMedication(id: string): Observable<void> {
     return this.http.delete<void>(`${this.API_URL}/${id}`, { withCredentials: true });

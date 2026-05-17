@@ -13,69 +13,116 @@
             <strong>{{ candidateStocks.length }}</strong>
             <p>Active medications available</p>
         </div>
-
         <div class="transfer-kpi">
             <span>Pending Requests</span>
             <strong>{{ pendingTransfersCount }}</strong>
             <p>Waiting for approval</p>
         </div>
-
         <div class="transfer-kpi">
             <span>Total Transfers</span>
             <strong>{{ transfers.length }}</strong>
             <p>All transfer requests</p>
         </div>
+        @if (mode === 'inbox') {
+        <div class="transfer-kpi">
+            <span>Unread Messages</span>
+            <strong>{{ incomingNotificationCount }}</strong>
+            <p>Inbox notifications</p>
+        </div>
+        }
     </div>
 
-    @if (mode === 'inbox') {
+    @if (mode === 'inbox' || mode === 'archive') {
     <section class="transfer-panel inbox-panel">
         <div class="inbox-header">
             <div>
-                <h2>Transfer Inbox</h2>
-                <p>Incoming transfer requests for {{ currentFacility }}</p>
+                <h2>Transfer Messages</h2>
+                <p>{{ mode === 'inbox' ? 'Active incoming requests' : 'Past conversations and history' }} for {{ currentFacility }}</p>
             </div>
-
-            @if (incomingNotificationCount > 0) {
-            <span class="notification-badge">
-                {{ incomingNotificationCount }} new
-            </span>
-            }
+            <div class="inbox-tabs">
+                <button type="button" [class.active]="mode === 'inbox'" (click)="mode = 'inbox'">
+                    Active @if (activeInboxMessages.length > 0) { <span>({{ activeInboxMessages.length }})</span> }
+                </button>
+                <button type="button" [class.active]="mode === 'archive'" (click)="mode = 'archive'">Archive</button>
+            </div>
         </div>
 
-        @if (incomingTransfers.length === 0) {
-        <p class="empty-state">No incoming transfer requests.</p>
+        @if (mode === 'inbox') {
+            @if (activeInboxMessages.length === 0) {
+                <p class="empty-state">No active requests.</p>
+            }
+            @for (msg of activeInboxMessages; track msg.inboxId) {
+            <div class="inbox-item" [class.unread]="msg.inboxStatus === 'unread'">
+                <div class="inbox-item-content">
+                    <strong>{{ msg.subject || 'Transfer Notification' }}</strong>
+                    <p>{{ msg.message || msg.reason }}</p>
+                    <span class="inbox-meta">
+                        Qty: {{ msg.quantity }} &bull;
+                        @if (msg.senderHospitalId) {
+                            From: <strong>{{ resolveHospitalName(msg.senderHospitalId) }}</strong> &bull;
+                        }
+                        Status: <span class="transfer-status" 
+                            [class.pending]="msg.transferStatus === 'pending'"
+                            [class.approved]="msg.transferStatus === 'accepted'"
+                            [class.rejected]="msg.transferStatus === 'rejected'">
+                            {{ msg.transferStatus | uppercase }}
+                        </span>
+                        @if (msg.createdAt) {
+                         &bull; {{ msg.createdAt | date:'short' }}
+                        }
+                    </span>
+                </div>
+                <div class="inbox-actions">
+                    @if (canManageTransfers && msg.transferRequestId && msg.transferStatus === 'pending') {
+                    <div class="table-actions" style="margin-right: 1rem;">
+                        <button type="button" (click)="handleInboxAction(msg, 'APPROVED')" [disabled]="isSubmitting">Approve</button>
+                        <button type="button" class="reject" (click)="handleInboxAction(msg, 'REJECTED')" [disabled]="isSubmitting">Reject</button>
+                    </div>
+                    }
+                    @if (msg.inboxId) {
+                        @if (msg.inboxStatus === 'unread' && msg.transferStatus !== 'pending') {
+                            <button type="button" (click)="markInboxMessageRead(msg.inboxId)" style="margin-right: 1rem;">Mark as Read</button>
+                        }
+                        <button type="button" class="reject" (click)="deleteInboxMessage(msg.inboxId)">Delete</button>
+                    }
+                </div>
+            </div>
+            }
         }
 
-        @for (transfer of incomingTransfers; track transfer.id) {
-        <div class="inbox-item">
-            <div>
-                <strong>{{ transfer.medicationName }}</strong>
-                <p>
-                    {{ transfer.quantity }} units from {{ transfer.fromFacility }}
-                </p>
-                <span>{{ transfer.reason }}</span>
-            </div>
-
-            <div class="inbox-actions">
-                <span class="transfer-status" [class.pending]="transfer.status === 'PENDING'"
-                    [class.approved]="transfer.status === 'APPROVED'" [class.rejected]="transfer.status === 'REJECTED'"
-                    [class.completed]="transfer.status === 'COMPLETED'">
-                    {{ transfer.status }}
-                </span>
-
-                @if (transfer.status === 'PENDING' && canManageTransfers) {
-                <div class="table-actions">
-                    <button type="button" (click)="updateStatus(transfer.id, 'APPROVED')">
-                        Accept
-                    </button>
-
-                    <button type="button" class="reject" (click)="updateStatus(transfer.id, 'REJECTED')">
-                        Reject
-                    </button>
+        @if (mode === 'archive') {
+            @if (archivedInboxMessages.length === 0) {
+                <p class="empty-state">No archived messages.</p>
+            }
+            @for (msg of archivedInboxMessages; track msg.inboxId) {
+            <div class="inbox-item archived">
+                <div class="inbox-item-content">
+                    <strong>{{ msg.subject || 'Transfer Notification' }}</strong>
+                    <p>{{ msg.message || msg.reason }}</p>
+                    <span class="inbox-meta">
+                        Qty: {{ msg.quantity }} &bull;
+                        @if (msg.senderHospitalId) {
+                            From: <strong>{{ resolveHospitalName(msg.senderHospitalId) }}</strong> &bull;
+                        }
+                        Status:
+                        <span class="transfer-status"
+                            [class.approved]="msg.transferStatus === 'accepted'"
+                            [class.rejected]="msg.transferStatus === 'rejected'"
+                            [class.completed]="msg.transferStatus === 'completed'">
+                            {{ msg.transferStatus | uppercase }}
+                        </span>
+                        @if (msg.createdAt) {
+                         &bull; {{ msg.createdAt | date:'short' }}
+                        }
+                    </span>
                 </div>
-                }
+                <div class="inbox-actions">
+                    @if (msg.inboxId) {
+                    <button type="button" class="reject" (click)="deleteInboxMessage(msg.inboxId)">Delete</button>
+                    }
+                </div>
             </div>
-        </div>
+            }
         }
     </section>
     }
@@ -86,21 +133,19 @@
             <h2>Create Transfer Request</h2>
 
             @if (!canManageTransfers) {
-            <div class="restricted-card">
-                You do not have permission to create transfers.
-            </div>
+            <div class="restricted-card">You do not have permission to create transfers.</div>
             }
 
             @if (canManageTransfers) {
             <form (ngSubmit)="createTransfer()" class="transfer-form">
-                
+
                 <div style="margin-bottom: 1rem; display: flex; gap: 1rem; align-items: center;">
                     <label style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0;">
-                        <input type="radio" name="transferDirection" [(ngModel)]="transferDirection" value="SEND" />
+                        <input type="radio" name="transferDirection" [(ngModel)]="transferDirection" value="SEND" (ngModelChange)="onMedicationChange()" />
                         Send Transfer
                     </label>
                     <label style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0;">
-                        <input type="radio" name="transferDirection" [(ngModel)]="transferDirection" value="REQUEST" />
+                        <input type="radio" name="transferDirection" [(ngModel)]="transferDirection" value="REQUEST" (ngModelChange)="onMedicationChange()" />
                         Request Transfer
                     </label>
                 </div>
@@ -109,9 +154,7 @@
                     Medication
                     <select name="selectedMedicationId" [(ngModel)]="selectedMedicationId" (ngModelChange)="onMedicationChange()">
                         @for (stock of filteredCandidateStocks; track stock.medicationId) {
-                        <option [ngValue]="stock.medicationId">
-                            {{ stock.medicationName }} ({{ stock.category }})
-                        </option>
+                        <option [ngValue]="stock.medicationId">{{ stock.medicationName }} ({{ stock.category }})</option>
                         }
                     </select>
                 </label>
@@ -132,7 +175,8 @@
 
                 <label>
                     {{ transferDirection === 'SEND' ? 'Destination facility' : 'Source facility' }}
-                    <select name="selectedOtherFacility" [(ngModel)]="selectedOtherFacility">
+                    <select name="selectedOtherFacility" [(ngModel)]="selectedOtherFacility" (ngModelChange)="onMedicationChange()">
+                        <option value="" disabled selected>-- Select a facility --</option>
                         @for (facility of destinationFacilities; track facility) {
                         <option [ngValue]="facility">{{ facility }}</option>
                         }
@@ -146,14 +190,9 @@
 
                 <label>
                     Reason
-                    <textarea
-                      name="reason"
-                      rows="4"
-                      [(ngModel)]="reason"
-                      [maxlength]="reasonMaxLength"
+                    <textarea name="reason" rows="4" [(ngModel)]="reason" [maxlength]="reasonMaxLength"
                       placeholder="Explain the reason for this transfer..."
-                      style="resize: none; width: 100%; box-sizing: border-box;"
-                    ></textarea>
+                      style="resize: none; width: 100%; box-sizing: border-box;"></textarea>
                     <span [style.color]="reasonTooLong ? 'red' : 'inherit'" style="font-size: 0.75rem;">
                       {{ reason.length }} / {{ reasonMaxLength }} characters
                     </span>
@@ -172,13 +211,13 @@
                 @if (errorMessage) {
                 <p class="form-message error">{{ errorMessage }}</p>
                 }
-
                 @if (successMessage) {
                 <p class="form-message success">{{ successMessage }}</p>
                 }
 
-                <button type="submit">
-                    {{ transferDirection === 'SEND' ? 'Create Transfer' : 'Request Transfer' }}
+                <button type="submit" [disabled]="isSubmitting">
+                    @if (isSubmitting) { Saving... }
+                    @else { {{ transferDirection === 'SEND' ? 'Create Transfer' : 'Request Transfer' }} }
                 </button>
             </form>
             }
@@ -188,7 +227,8 @@
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
                 <h2 style="margin: 0;">Available Medications</h2>
                 <div style="display: flex; gap: 0.5rem;">
-                    <input type="text" placeholder="Search by name..." [(ngModel)]="searchQuery" style="padding: 0.5rem; border: 1px solid #ddd; border-radius: 4px; min-width: 200px;" />
+                    <input type="text" placeholder="Search by name..." [(ngModel)]="searchQuery"
+                      style="padding: 0.5rem; border: 1px solid #ddd; border-radius: 4px; min-width: 200px;" />
                     <select [(ngModel)]="categoryFilter" style="padding: 0.5rem; border: 1px solid #ddd; border-radius: 4px;">
                         <option value="ALL">All Categories</option>
                         @for (category of uniqueCategories; track category) {
@@ -209,11 +249,8 @@
                     <strong>{{ stock.medicationName }}</strong>
                     <p>{{ stock.category }}</p>
                 </div>
-
                 <div class="candidate-meta">
-                    @if (stock.criticality) {
-                    <span>{{ stock.criticality }}</span>
-                    }
+                    @if (stock.criticality) { <span>{{ stock.criticality }}</span> }
                     <span [class.inactive]="!stock.isActive">{{ stock.isActive ? 'Active' : 'Inactive' }}</span>
                     <button type="button" class="btn-details" (click)="openDetails(stock)">View Details</button>
                 </div>
@@ -228,7 +265,6 @@
 
     <section class="transfer-panel transfer-history">
         <h2>Transfer Requests</h2>
-
         <table>
             <thead>
                 <tr>
@@ -241,44 +277,34 @@
                     <th>Actions</th>
                 </tr>
             </thead>
-
             <tbody>
                 @for (transfer of transfers; track transfer.id) {
                 <tr>
                     <td>#{{ transfer.id }}</td>
-
-                    <td>
-                        <strong>{{ transfer.medicationName }}</strong>
-                    </td>
-
-                    <td>{{ transfer.fromFacility }}</td>
-                    <td>{{ transfer.toFacility }}</td>
+                    <td><strong>{{ transfer.medicationName }}</strong></td>
+                    <td>{{ resolveHospitalName(transfer.fromFacility) }}</td>
+                    <td>{{ resolveHospitalName(transfer.toFacility) }}</td>
                     <td>{{ transfer.quantity }}</td>
-
                     <td>
-                        <span class="transfer-status" [class.pending]="transfer.status === 'PENDING'"
+                        <span class="transfer-status"
+                            [class.pending]="transfer.status === 'PENDING'"
                             [class.approved]="transfer.status === 'APPROVED'"
                             [class.rejected]="transfer.status === 'REJECTED'"
                             [class.completed]="transfer.status === 'COMPLETED'">
                             {{ transfer.status }}
                         </span>
                     </td>
-
                     <td>
                         @if (transfer.status === 'PENDING' && canManageTransfers) {
                         <div class="table-actions">
-                            <button type="button" (click)="updateStatus(transfer.id, 'APPROVED')">
-                                Approve
-                            </button>
-                            <button type="button" class="reject" (click)="updateStatus(transfer.id, 'REJECTED')">
-                                Reject
-                            </button>
+                            <button type="button" (click)="updateStatusByBackendId(transfer.backendId!, 'APPROVED')">Approve</button>
+                            <button type="button" class="reject" (click)="updateStatusByBackendId(transfer.backendId!, 'REJECTED')">Reject</button>
                         </div>
                         }
-
-                        @if (transfer.status === 'APPROVED' && canManageTransfers) {
-                        <button type="button" class="complete" (click)="updateStatus(transfer.id, 'COMPLETED')">
-                            Complete
+                        @if (transfer.status === 'APPROVED') {
+                        <button type="button" class="btn-finish" (click)="updateStatusByBackendId(transfer.backendId!, 'COMPLETED')" 
+                                style="background: #10b981; color: white; border: none; padding: 0.5rem 1rem; border-radius: 6px; cursor: pointer;">
+                            Finish
                         </button>
                         }
                     </td>
@@ -286,12 +312,11 @@
                 }
             </tbody>
         </table>
-
         @if (transfers.length === 0) {
         <p class="empty-state">No transfer requests yet.</p>
         }
     </section>
-    } <!-- Closing brace for @if (mode === 'transfers') -->
+    }
 
     @if (selectedStockForDetails) {
     <app-medication-details-modal
@@ -300,5 +325,4 @@
       (initiateAction)="onInitiateActionFromModal($event)"
     ></app-medication-details-modal>
     }
-
 </div>

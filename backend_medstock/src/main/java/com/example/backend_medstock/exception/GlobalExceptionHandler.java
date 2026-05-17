@@ -50,13 +50,17 @@ public class GlobalExceptionHandler {
                 ));
     }
 
-    // Dacă apare ORICE altă eroare neprevăzută în aplicație (Fallback)
     @ExceptionHandler(Exception.class)
     public ResponseEntity<?> handleGlobalException(Exception ex) {
+        ex.printStackTrace();
+        String errorMessage = ex.getMessage();
+        if (ex.getCause() != null) {
+            errorMessage += " | CAUSE: " + ex.getCause().getMessage();
+        }
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                 .body(Map.of(
                         "status", 500,
-                        "eroare", "A apărut o problemă internă pe server. Contactează administratorul."
+                        "eroare", "A apărut o problemă internă pe server: " + errorMessage
                 ));
     }
 }

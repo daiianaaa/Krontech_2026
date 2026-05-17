@@ -83,6 +83,93 @@
         </div>
       </div>
 
+      <!-- AI Savings Opportunities Dashboard Panel -->
+      <!-- Notification Banner -->
+      <div class="alert-banner" *ngIf="successMessage">
+        <div class="alert-icon">✓</div>
+        <div class="alert-content">
+          <strong>Success!</strong> {{ successMessage }}
+        </div>
+      </div>
+
+      <div class="alert-banner" style="background: #e0e7ff; color: #3730a3; border: 1px solid #c7d2fe;" *ngIf="notificationMessage">
+        <div class="alert-icon" style="background: #4f46e5;">🔔</div>
+        <div class="alert-content">
+          <strong>New Alert!</strong> {{ notificationMessage }}
+        </div>
+      </div>
+
+      <div class="alert-banner error" *ngIf="errorMessage">
+        <span class="alert-icon">⚠</span>
+        <div class="alert-content">
+          <strong>Error!</strong> {{ errorMessage }}
+        </div>
+      </div>
+
+      <div class="dashboard-kpi-area" *ngIf="currentUser && currentUser.role === 'MANAGER' && (recommendations.length > 0 || realizedTransfers.length > 0)">
+        
+        <!-- Realized Savings Card -->
+        <div class="realized-savings-card" *ngIf="realizedTransfers.length > 0">
+          <div class="rs-left">
+            <div class="rs-icon-box">💰</div>
+            <div class="rs-text-col">
+              <span class="rs-title">Realized Savings</span>
+              <span class="rs-desc">{{ realizedTransfers.length }} opportunities successfully approved</span>
+            </div>
+          </div>
+          <div class="rs-right">
+            <span class="rs-amount">+{{ realizedSavings | number:'1.0-0':'ro' }} RON</span>
+          </div>
+        </div>
+
+        <div class="savings-container" *ngIf="recommendations.length > 0">
+          <div class="chart-card centered-card">
+            <div class="card-header-flex">
+            <div class="title-with-icon">
+              <h2 class="card-title">Potential Savings Breakdown</h2>
+              <span class="info-icon">ℹ</span>
+            </div>
+            <button class="view-details-btn">View details</button>
+          </div>
+
+          <div class="donut-wrapper">
+            <svg viewBox="0 0 120 120" class="donut-svg">
+              <circle cx="60" cy="60" r="50" fill="transparent" stroke="#f3f4f6" stroke-width="14"></circle>
+              <circle 
+                *ngFor="let arc of donutSegments"
+                cx="60" cy="60" r="50" 
+                fill="transparent" 
+                [attr.stroke]="arc.color" 
+                stroke-width="14"
+                [attr.stroke-dasharray]="arc.strokeDasharray"
+                [attr.stroke-dashoffset]="arc.strokeDashoffset"
+                transform="rotate(-90 60 60)"
+                class="donut-segment">
+                <title>Medication: {{ arc.rawItem.medicationName }}&#10;Quantity: {{ arc.rawItem.recommendedQuantity }}&#10;Reason: {{ arc.rawItem.reason }}</title>
+              </circle>
+            </svg>
+            <div class="donut-center-text">
+              <span class="savings-amount">{{ totalSavings | number:'1.0-0':'ro' }} RON</span>
+              <span class="savings-label">potential savings</span>
+            </div>
+          </div>
+
+          <div class="donut-legend-full">
+            <div *ngFor="let arc of donutSegments" class="legend-row-full">
+              <div class="legend-left">
+                <span class="legend-color-dot" [style.background-color]="arc.color"></span>
+                <span class="legend-route-name">{{ arc.name }}</span>
+              </div>
+              <div class="legend-right">
+                <span class="legend-val">{{ arc.value | number:'1.0-0':'ro' }} RON</span>
+                <span class="legend-pct">{{ arc.percentage | number:'1.0-0' }}%</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      </div>
+
       <div class="dashboard-grid">
         <section class="panel">
           <div class="panel-header">
@@ -146,19 +233,11 @@
 
       @if (activeTab === 'medications') {
       <h1>Medication Management</h1>
-      @if (canAddMedication()) {
-      <app-medication-form
-        [medicamentToEdit]="selectedMedicament"
-        [backendError]="backendError"
-        (save)="saveMed($event)"
-        (cancelEdit)="cancelMedicationEdit()">
-      </app-medication-form>
-      } @else {
-      <div class="restricted-card">
-        You do not have permission to add or edit medications.
-      </div>
-      }
-      <app-medicament-list [medicaments]="medicaments" (edit)="editMed($event)" (delete)="deleteMed($event)">
+
+      <app-medicament-list 
+        [medicaments]="medicaments"
+        (delete)="deleteMed($event)"
+        (filterChange)="loadMedications($event)">
       </app-medicament-list>
       }
 

@@ -10,7 +10,7 @@ import {
 
 @Injectable({ providedIn: 'root' })
 export class PredictionService {
-  private readonly RECOMMENDATIONS_API = '/api/medication/recommendation';
+  private readonly RECOMMENDATIONS_API = '/api/recommendations';
 
   constructor(private http: HttpClient) {}
 
@@ -43,5 +43,9 @@ export class PredictionService {
       last_ai_prediction_at: null,
       last_successful_ai_run_at: null
     });
+  }
+
+  acceptRecommendation(id: string, userId: string): Observable<any> {
+    return this.http.put(`${this.RECOMMENDATIONS_API}/${id}/accept?acceptedByUserId=${userId}`, {}, { withCredentials: true });
   }
 }
