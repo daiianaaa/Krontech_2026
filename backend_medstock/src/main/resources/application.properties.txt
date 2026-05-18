@@ -1,0 +1,66 @@
+# ===================================================================
+# Sablon General de Configurare pentru MediStock Backend
+# Redenumiti acest fisier in "application.properties" pentru ca aplicatia sa ruleze.
+# Amplasare necesara: backend_medstock/src/main/resources/application.properties
+# ===================================================================
+
+# ============================================
+# Configurare Baza de Date (Supabase PostgreSQL / Local)
+# ============================================
+# Adresa JDBC a bazei de date. Inlocuiti <HOST>, <PORT> si <DATABASE> cu datele voastre.
+spring.datasource.url=jdbc:postgresql://<YOUR_DATABASE_HOST>:<YOUR_PORT>/<YOUR_DATABASE_NAME>
+
+# Utilizatorul bazei de date (ex: postgres)
+spring.datasource.username=<YOUR_DATABASE_USERNAME>
+
+# Parola bazei de date
+spring.datasource.password=<YOUR_DATABASE_PASSWORD>
+
+# Driverul bazei de date (implicit pentru PostgreSQL)
+spring.datasource.driver-class-name=org.postgresql.Driver
+
+# ============================================
+# Hikari Connection Pool (Optimizare Conexiuni)
+# ============================================
+# Limita de conexiuni (Supabase are limite stranse in modul free, de exemplu max 15)
+spring.datasource.hikari.maximum-pool-size=3
+spring.datasource.hikari.minimum-idle=1
+spring.datasource.hikari.connection-timeout=30000
+
+# ============================================
+# JPA & Hibernate Config
+# ============================================
+# ddl-auto: setati pe "update" doar daca doriti ca Hibernate sa genereze automat tabelele.
+# Recomandat "none" daca tabelele exista deja sau sunt controlate manual.
+spring.jpa.hibernate.ddl-auto=none
+spring.jpa.show-sql=true
+spring.jpa.properties.hibernate.dialect=org.hibernate.dialect.PostgreSQLDialect
+
+# ============================================
+# Configurare JWT (Autentificare Securizata)
+# ============================================
+# Cheia secreta folosita pentru semnarea si decodificarea token-urilor JWT.
+# Trebuie sa fie un sir de caractere lung si greu de ghicit (minim 256 de biti recomanat).
+jwt.secret=<YOUR_SUPER_SECRET_KEY_FOR_JWT_SIGNING>
+
+# ============================================
+# Configurare Serviciu Engine AI (Python subprocess)
+# ============================================
+# Activare sau dezactivare pentru pornirea automata a scriptului de recomandari Python de catre Java
+engine.enabled=true
+
+# Calea catre executabilul de Python. 
+# Pe macOS/Linux: "python3" sau calea directa catre mediul virtual (ex: .venv/bin/python3)
+# Pe Windows: "python" sau "py"
+engine.python-executable=python3
+
+# Host-ul si portul pe care va rula engine-ul local
+engine.host=127.0.0.1
+engine.port=8001
+
+# Directorul in care se afla engine-ul Python (relativ la backend_medstock/)
+engine.script-dir=../medistock-engine
+
+# Activare auto-refresh: ruleaza periodic recomandările AI la intervalul specificat in secunde
+engine.auto-refresh-enabled=true
+engine.auto-refresh-interval-seconds=15
